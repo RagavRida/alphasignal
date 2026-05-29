@@ -23,80 +23,66 @@ thresholds:
   pricing_change_alert: 10
   traffic_growth_alert: 30
 watch_list:
+  generated_at: '2026-05-29T15:30:00Z'
+  generated_from: company_profile
   companies:
   - category: direct_competitor
-    name: Replit
-    pricing_url: https://replit.com/pricing
-    reason: Direct competitor in AI-powered coding platform space with similar no-code
-      development capabilities
+    name: Coda
+    pricing_url: https://coda.io/pricing
+    reason: Direct competitor — all-in-one doc + database workspace targeting same SMB/startup segment
     suppliers: []
     ticker: ''
   - category: direct_competitor
-    name: Bubble
-    pricing_url: https://bubble.io/pricing
-    reason: Major no-code platform competitor expanding into AI integration features
+    name: Obsidian
+    pricing_url: https://obsidian.md/pricing
+    reason: Growing competitor in knowledge management; strong developer and power-user overlap
     suppliers: []
     ticker: ''
   - category: direct_competitor
-    name: Vercel
-    pricing_url: https://vercel.com/pricing
-    reason: Competes in developer tooling space with v0.dev AI code generation product
+    name: Craft
+    pricing_url: https://www.craft.do/pricing
+    reason: Document-first workspace competitor with strong mobile experience
     suppliers: []
     ticker: ''
   - category: direct_competitor
-    name: Retool
-    pricing_url: https://retool.com/pricing
-    reason: Low-code platform targeting similar developer and product team audience
+    name: Tana
+    pricing_url: https://tana.inc
+    reason: Emerging AI-native workspace competitor gaining traction with knowledge workers
     suppliers: []
     ticker: ''
-  - category: icp_prospect
-    name: Notion
-    pricing_url: https://www.notion.so/pricing
-    reason: Series B company actively integrating AI features, fits ICP profile for
-      AI-native application development
+  - category: direct_competitor
+    name: Confluence
+    pricing_url: https://www.atlassian.com/software/confluence/pricing
+    reason: Enterprise wiki and knowledge management — direct competitor in team documentation
+    suppliers: []
+    ticker: TEAM
+  - category: market_signal
+    name: Roam Research
+    pricing_url: https://roamresearch.com
+    reason: Bi-directional linking pioneer; tracks innovation direction for knowledge graph features
     suppliers: []
     ticker: ''
-  - category: icp_prospect
+  - category: market_signal
+    name: Linear
+    pricing_url: https://linear.app/pricing
+    reason: Adjacent productivity tool — tracks hiring/funding signals in same buyer segment
+    suppliers: []
+    ticker: ''
+  - category: market_signal
     name: Figma
     pricing_url: https://www.figma.com/pricing
-    reason: Product-focused company with large developer and design teams, ideal ICP
-      match for AI development tools
+    reason: Cross-functional teams are shared buyers; Figma AI moves signal broader workspace consolidation
     suppliers: []
     ticker: ''
-  - category: icp_prospect
-    name: Canva
-    pricing_url: https://www.canva.com/pricing
-    reason: Tech company investing heavily in AI features, matches ICP for AI-native
-      application development
+  - category: market_signal
+    name: Atlassian
+    pricing_url: https://www.atlassian.com/pricing
+    reason: Parent of Confluence; pricing and product moves set enterprise benchmark
     suppliers: []
-    ticker: ''
-  - category: icp_prospect
-    name: Airtable
-    pricing_url: https://airtable.com/pricing
-    reason: Mid-market SaaS company with product teams that could benefit from AI
-      development acceleration
-    suppliers: []
-    ticker: ''
+    ticker: TEAM
   - category: market_signal
     name: Microsoft
-    pricing_url: https://azure.microsoft.com/en-us/pricing
-    reason: Industry leader in AI tooling and cloud infrastructure, sets market direction
-      with GitHub Copilot and Azure AI
+    pricing_url: https://www.microsoft.com/en-us/microsoft-365/business/compare-all-plans
+    reason: Loop and Teams Wiki compete indirectly; Microsoft 365 Copilot sets AI workspace expectations
     suppliers: []
     ticker: MSFT
-  - category: market_signal
-    name: Amazon
-    pricing_url: https://aws.amazon.com/pricing
-    reason: Major cloud provider with AI/ML services, influences compute infrastructure
-      pricing and availability
-    suppliers: []
-    ticker: AMZN
-  - category: market_signal
-    name: OpenAI
-    pricing_url: https://openai.com/pricing
-    reason: Key AI model provider whose API changes and pricing affect entire AI development
-      ecosystem
-    suppliers: []
-    ticker: ''
-  generated_at: '2026-05-29T07:33:26.742462Z'
-  generated_from: company_profile

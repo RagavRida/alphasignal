@@ -105,24 +105,23 @@ async def ws_monitor(websocket: WebSocket):
     await websocket.accept()
     _ws_clients.add(websocket)
     try:
-        # 1. Send recent alerts on connect so the feed is never empty
         recent = state.get_recent_alerts(20)
         for alert in reversed(recent):
             await websocket.send_text(json.dumps({"type": "alert", "data": alert}))
 
-        # 2. Keep alive with server-side ping every 20s
-        #    Also listen for client pings (browser sends "ping")
         while True:
             try:
-                # Wait up to 20s for any client message
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=20.0)
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
                 if data == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
             except asyncio.TimeoutError:
-                # Send heartbeat so browser knows connection is alive
-                await websocket.send_text(json.dumps({"type": "heartbeat",
-                                                       "ts": datetime.utcnow().isoformat() + "Z"}))
-    except (WebSocketDisconnect, Exception):
+                await websocket.send_text(json.dumps({
+                    "type": "heartbeat",
+                    "ts": datetime.utcnow().isoformat() + "Z",
+                }))
+            except WebSocketDisconnect:
+                break
+    except Exception:
         pass
     finally:
         _ws_clients.discard(websocket)
@@ -135,7 +134,6 @@ async def ws_sales(websocket: WebSocket):
     await websocket.accept()
     _ws_sales_clients.add(websocket)
     try:
-        # Send existing leads on connect
         try:
             from src.sales import sales_state
             leads   = sales_state.get_leads(limit=50)
@@ -151,13 +149,17 @@ async def ws_sales(websocket: WebSocket):
 
         while True:
             try:
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=20.0)
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
                 if data == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
             except asyncio.TimeoutError:
-                await websocket.send_text(json.dumps({"type": "heartbeat",
-                                                       "ts": datetime.utcnow().isoformat() + "Z"}))
-    except (WebSocketDisconnect, Exception):
+                await websocket.send_text(json.dumps({
+                    "type": "heartbeat",
+                    "ts": datetime.utcnow().isoformat() + "Z",
+                }))
+            except WebSocketDisconnect:
+                break
+    except Exception:
         pass
     finally:
         _ws_sales_clients.discard(websocket)
