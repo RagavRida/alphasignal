@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: alphasignal-dashboard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.dashboard.server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: DASHBOARD_HOST
+        value: "0.0.0.0"
+      - key: DEMO_MODE
+        value: "true"
+      # ── Secrets: set in Render dashboard for live mode ──
+      - key: BRIGHT_DATA_API_TOKEN
+        sync: false
+      - key: BRIGHT_DATA_SERP_ZONE
+        sync: false
+      - key: BRIGHT_DATA_SCRAPER_ZONE
+        sync: false
+      - key: BRIGHT_DATA_BROWSER_AUTH
+        sync: false
+      - key: BRIGHT_DATA_MCP_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
