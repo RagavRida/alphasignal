@@ -50,9 +50,9 @@ market_disruption    = news_score < -0.6 AND traffic_delta < -30%
 
 A single matched thesis fires an alert. Two matched theses in the same cycle trigger a cross-signal alert with elevated confidence.
 
-### Layer 3 — Alert Generation (Claude)
+### Layer 3 — Alert Generation (AI/ML API)
 
-Only confirmed thesis matches reach Claude. The prompt includes: the matched thesis pattern, all supporting signal values, historical context, and the specific evidence URLs. Claude's job is not to decide whether something is significant — the correlation engine already did that. Claude writes the investment narrative in the style of a hedge fund research memo: what happened, why it matters, what the likely move is, and what to watch next.
+Only confirmed thesis matches reach the AI/ML API. The prompt includes: the matched thesis pattern, all supporting signal values, historical context, and the specific evidence URLs. The model's job is not to decide whether something is significant — the correlation engine already did that. It writes the investment narrative in the style of a hedge fund research memo: what happened, why it matters, what the likely move is, and what to watch next.
 
 This separation between detection logic and narrative generation is why alerts don't hallucinate. If the data doesn't trigger a thesis, no alert is generated.
 
@@ -94,7 +94,7 @@ On-demand discovery and outreach for any ICP description.
 2. Lead Discovery
    Each query runs through Bright Data SERP API
    Results are de-duplicated, company pages are scraped
-   Claude scores each company 0–100 against the ICP
+   AI/ML API scores each company 0–100 against the ICP
 
 3. Intent Monitoring
    For each scored lead (score ≥ 60):
@@ -107,7 +107,7 @@ On-demand discovery and outreach for any ICP description.
    → feeds into email personalization
 
 5. Outreach Generation
-   Claude writes a 4-step sequence using:
+   AI/ML API writes a 4-step sequence using:
    - Your exact brand name, product, use case
    - Lead's specific signals ("saw you're hiring 3 SDRs", "noticed your G2 reviews mention X")
    - Competitor positioning if a competitor was specified
@@ -135,7 +135,7 @@ The reasoning: a company that just raised is in buying mode. Similar companies i
 
 This isn't "use whichever API is cheapest." Each product is chosen because other approaches fail on that specific target:
 
-**MCP Server** — used for company blogs, LinkedIn profile pages, and Crunchbase. These are high-value structured data sources where the MCP server's `scrape_as_markdown` tool returns cleaner text than raw HTML scraping, directly usable as Claude context.
+**MCP Server** — used for company blogs, LinkedIn profile pages, and Crunchbase. These are high-value structured data sources where the MCP server's `scrape_as_markdown` tool returns cleaner text than raw HTML scraping, directly usable as model context.
 
 **SERP API** — used for discovery queries, news, and intent signals. The key property here is scale: lead discovery runs 8 queries per pipeline execution. Raw Google scraping at this frequency would get rate-limited within minutes. SERP API provides stable, structured results.
 
@@ -174,15 +174,15 @@ flowchart TD
         D6["SupplierRiskDetector"]
         D7["WebTrafficDetector"]
         SC["SignalCorrelator\n5 thesis rules\ngrowth · threat · distress\nsupplier_risk · disruption"]
-        AG["AlertGenerator\nClaude writes memo\nconfidence + direction"]
+        AG["AlertGenerator\nAI/ML API writes memo\nconfidence + direction"]
     end
 
     subgraph ENGINE2["Engine 2 — Sales Pipeline (on demand)"]
-        E1["ICP Parser\nClaude → 8 search queries"]
+        E1["ICP Parser\nAI/ML API → 8 search queries"]
         E2["Lead Discovery\nSERP × 8 → scored leads"]
         E3["Intent Monitor\nG2 · Reddit · HN · Glassdoor"]
         E4["Context Fetcher\nblog · jobs · press"]
-        E5["Outreach Sequencer\nClaude → 4-step email\n+ LinkedIn DM"]
+        E5["Outreach Sequencer\nAI/ML API → 4-step email\n+ LinkedIn DM"]
     end
 
     subgraph CROSS["Cross-Signal Engine"]
@@ -244,17 +244,17 @@ Every hour (Market Monitor):
     └─ 7 detectors run in parallel, each hitting a different Bright Data product
          └─ normalized signals: {type, value, delta, confidence, evidence_url}
               └─ SignalCorrelator: test 5 cross-signal thesis patterns
-                   └─ thesis match → Claude writes investment alert
+                   └─ thesis match → AI/ML API writes investment alert
                         └─ SSE stream → dashboard + SQLite
 
 On demand (Sales Pipeline):
   ICP text
-    └─ Claude → 8 targeted Google queries
+    └─ AI/ML API → 8 targeted Google queries
          └─ SERP API → company candidates (de-duped)
-              └─ Claude scores each 0–100 vs ICP
+              └─ AI/ML API scores each 0–100 vs ICP
                    └─ score ≥ 60 → intent monitoring (G2/Reddit/HN)
                         └─ context fetch (blog/jobs via MCP)
-                             └─ Claude → 4-step email sequence + LinkedIn DM
+                             └─ AI/ML API → 4-step email sequence + LinkedIn DM
                                   └─ SSE stream → lead appears in dashboard
 
 Cross-signal (automatic):
@@ -301,7 +301,7 @@ Opens the dashboard with pre-loaded demo data for a Notion competitor analysis. 
 BRIGHT_DATA_API_TOKEN=       # Bright Data REST API token
 BRIGHT_DATA_SERP_ZONE=       # Zone name from Bright Data dashboard
 BRIGHT_DATA_MCP_URL=         # MCP server URL with token
-AIML_API_KEY=                # AI/ML API key (Claude via OpenAI-compatible endpoint)
+AIML_API_KEY=                # AI/ML API key (model served via OpenAI-compatible endpoint)
 
 # Optional
 RESEND_API_KEY=              # For email sending from the dashboard
@@ -319,7 +319,7 @@ alphasignal/
 │   ├── bright_data_client.py   # Unified async Bright Data client (all 5 products)
 │   ├── signal_detectors.py     # 7 parallel detectors
 │   ├── signal_correlator.py    # Cross-signal thesis engine (5 rules)
-│   ├── alert_generator.py      # Claude-powered alert narration
+│   ├── alert_generator.py      # AI/ML API alert narration
 │   ├── monitor.py              # Autonomous monitor loop
 │   ├── state.py                # SQLite persistence
 │   ├── company_profile.py      # Brand intelligence + watch list generation
@@ -362,7 +362,7 @@ These are configurable in `config.yaml`:
 ## Built With
 
 - **[Bright Data](https://brightdata.com)** — web data infrastructure (MCP Server, SERP API, Web Scraper API, Scraping Browser, Web Unlocker)
-- **[AI/ML API](https://aimlapi.com)** — Claude via OpenAI-compatible endpoint
+- **[AI/ML API](https://aimlapi.com)** — model served via OpenAI-compatible endpoint
 - **[FastAPI](https://fastapi.tiangolo.com)** — async Python web framework
 - **[Resend](https://resend.com)** — transactional email
 
