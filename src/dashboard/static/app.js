@@ -7,51 +7,32 @@ const wsStatus = document.getElementById('ws-status');
 const statusText = document.getElementById('status-text');
 const modeBadge = document.getElementById('mode-badge');
 
-let alertStore   = [];   // All alerts (for filtering)
+let alertStore   = [];
 let activeFilter = 'all';
-let ws = null;
 
-// ─── WebSocket ────────────────────────────────────────────────────────────────
+// ─── SSE ──────────────────────────────────────────────────────────────────────
 
-function connectWS() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${proto}//${location.host}/ws`);
-  let pingInterval = null;
+function connectSSE() {
+  const es = new EventSource('/sse');
 
-  ws.onopen = () => {
-    wsStatus.textContent = '● Live';
-    wsStatus.style.color = 'var(--green)';
-    statusText.textContent = 'Monitoring Live';
-    document.getElementById('status-badge').style.background = 'var(--green-dim)';
-
-    // Send ping every 15s to keep connection alive
-    pingInterval = setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) ws.send('ping');
-    }, 15000);
+  es.onopen = () => {
+    if (wsStatus)  wsStatus.textContent = '● Live';
+    if (wsStatus)  wsStatus.style.color = 'var(--green)';
+    if (statusText) statusText.textContent = 'Monitoring Live';
+    const badge = document.getElementById('status-badge');
+    if (badge) badge.style.background = 'var(--green-dim)';
   };
 
-  ws.onmessage = (e) => {
+  es.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.type === 'alert')     handleNewAlert(msg.data);
-    if (msg.type === 'heartbeat') {
-      // Server heartbeat — connection is alive, update timestamp
-      const ts = msg.ts ? new Date(msg.ts).toLocaleTimeString() : '';
-      if (wsStatus) wsStatus.title = `Last heartbeat: ${ts}`;
-    }
-    // pong: nothing needed
+    if (msg.type === 'alert') handleNewAlert(msg.data);
   };
 
-  ws.onclose = () => {
-    wsStatus.textContent = '● Disconnected';
-    wsStatus.style.color = 'var(--red)';
-    statusText.textContent = 'Reconnecting…';
-    if (pingInterval) clearInterval(pingInterval);
-    setTimeout(connectWS, 3000);
-  };
-
-  ws.onerror = () => {
-    wsStatus.textContent = '● Error';
-    wsStatus.style.color = 'var(--yellow)';
+  es.onerror = () => {
+    if (wsStatus)  wsStatus.textContent = '● Reconnecting…';
+    if (wsStatus)  wsStatus.style.color = 'var(--yellow)';
+    if (statusText) statusText.textContent = 'Reconnecting…';
+    // EventSource retries automatically — no manual reconnect needed
   };
 }
 
@@ -388,7 +369,7 @@ function formatTimeAgo(ts) {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-connectWS();
+connectSSE();
 loadStatus();
 loadCompanies();
 

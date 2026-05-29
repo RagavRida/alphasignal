@@ -10,41 +10,35 @@ let currentTab = 0;
 let sortKey = 'score';
 let sortDir = -1;
 
-// ── WebSocket (standalone /sales page only) ───────────────────────────────────
+// ── SSE (standalone /sales page only) ────────────────────────────────────────
 
-function _salesConnectWS() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  salesWs = new WebSocket(`${proto}://${location.host}/ws/sales`);
+function _salesConnectSSE() {
+  const es = new EventSource('/sse/sales');
 
-  salesWs.onopen = () => {
+  es.onopen = () => {
     const dot   = document.getElementById('ws-dot');
     const label = document.getElementById('ws-label');
     if (dot)   dot.classList.add('live');
     if (label) label.textContent = 'Live';
   };
 
-  salesWs.onclose = () => {
+  es.onerror = () => {
     const dot   = document.getElementById('ws-dot');
     const label = document.getElementById('ws-label');
     if (dot)   dot.classList.remove('live');
     if (label) label.textContent = 'Reconnecting…';
-    setTimeout(_salesConnectWS, 3000);
+    // EventSource retries automatically
   };
 
-  salesWs.onmessage = (e) => {
+  es.onmessage = (e) => {
     const msg = JSON.parse(e.data);
+    if (msg.type === 'initial_data')   { msg.leads?.forEach(onNewLead); msg.signals?.forEach(onNewSignal); }
     if (msg.type === 'new_lead')       onNewLead(msg.lead);
     if (msg.type === 'new_signal')     onNewSignal(msg.signal);
     if (msg.type === 'pipeline_step')  onPipelineStep(msg);
     if (msg.type === 'pipeline_done')  onPipelineDone(msg);
     if (msg.type === 'bd_activity')    onBDActivity(msg);
   };
-
-  // Ping every 15s to keep connection alive
-  const ping = setInterval(() => {
-    if (salesWs && salesWs.readyState === WebSocket.OPEN) salesWs.send('ping');
-    else clearInterval(ping);
-  }, 15000);
 }
 
 // ── Pipeline control ──────────────────────────────────────────────────────────
@@ -819,7 +813,7 @@ function _renderBrandBanner(p) {
 document.addEventListener('DOMContentLoaded', () => {
   const isStandalone = window.location.pathname === '/sales';
   if (isStandalone) {
-    _salesConnectWS();
+    _salesConnectSSE();
   }
   // Always pre-load existing leads/signals from DB
   loadLeads();

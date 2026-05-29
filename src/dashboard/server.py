@@ -27,7 +27,7 @@ from typing import Set
 
 import yaml
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from src import state
@@ -42,13 +42,17 @@ app = FastAPI(title="AlphaSignal — Alternative Data Monitor", version="2.0.0")
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-# ── WebSocket client registries ───────────────────────────────────────────────
-_ws_clients:       Set[WebSocket] = set()   # hedge fund monitor feed
-_ws_sales_clients: Set[WebSocket] = set()   # sales pipeline feed
+# ── SSE queue registries ──────────────────────────────────────────────────────
+_sse_monitor_queues: Set[asyncio.Queue] = set()
+_sse_sales_queues:   Set[asyncio.Queue] = set()
+
+# Keep WebSocket sets alive so broadcast_alert signature stays compatible
+_ws_clients:       Set[WebSocket] = set()
+_ws_sales_clients: Set[WebSocket] = set()
 
 # Config cache
 _config       = None
-_monitor_ref  = None   # set by main.py to trigger run_once
+_monitor_ref  = None
 
 
 def _get_config():
@@ -63,34 +67,27 @@ def _get_config():
 
 # ── Broadcast helpers ─────────────────────────────────────────────────────────
 
-async def _broadcast(clients: Set[WebSocket], message: str):
-    """Send a message to all WebSocket clients, pruning dead ones."""
-    if not clients:
-        return
-    dead: Set[WebSocket] = set()
-    for ws in list(clients):
+def _enqueue(queues: Set[asyncio.Queue], message: str):
+    dead = set()
+    for q in list(queues):
         try:
-            await ws.send_text(message)
-        except Exception:
-            dead.add(ws)
-    clients -= dead
+            q.put_nowait(message)
+        except asyncio.QueueFull:
+            dead.add(q)
+    queues -= dead
 
 
 async def broadcast_alert(alert: dict):
-    """Push a new hedge-fund alert to all connected dashboard clients."""
-    await _broadcast(_ws_clients, json.dumps({"type": "alert", "data": alert}))
+    _enqueue(_sse_monitor_queues, json.dumps({"type": "alert", "data": alert}))
 
 
 async def broadcast_sales_event(event: dict):
-    """Push a sales pipeline event (new lead, signal, status) to sales dashboard."""
-    await _broadcast(_ws_sales_clients, json.dumps(event))
+    _enqueue(_sse_sales_queues, json.dumps(event))
 
 
 async def _on_bd_activity(event: dict):
-    """Broadcast a Bright Data API activity event to the sales dashboard."""
-    await _broadcast(_ws_sales_clients, json.dumps({"type": "bd_activity", **event}))
+    _enqueue(_sse_sales_queues, json.dumps({"type": "bd_activity", **event}))
 
-# Wire BD activity callback on module load
 try:
     from src.bright_data_client import set_activity_callback
     set_activity_callback(_on_bd_activity)
@@ -100,69 +97,64 @@ except Exception:
 
 # ── WebSocket — Hedge Fund Monitor ────────────────────────────────────────────
 
-@app.websocket("/ws")
-async def ws_monitor(websocket: WebSocket):
-    await websocket.accept()
-    _ws_clients.add(websocket)
-    try:
-        recent = state.get_recent_alerts(20)
-        for alert in reversed(recent):
-            await websocket.send_text(json.dumps({"type": "alert", "data": alert}))
-
-        while True:
-            try:
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
-                if data == "ping":
-                    await websocket.send_text(json.dumps({"type": "pong"}))
-            except asyncio.TimeoutError:
-                await websocket.send_text(json.dumps({
-                    "type": "heartbeat",
-                    "ts": datetime.utcnow().isoformat() + "Z",
-                }))
-            except WebSocketDisconnect:
-                break
-    except Exception:
-        pass
-    finally:
-        _ws_clients.discard(websocket)
+SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "X-Accel-Buffering": "no",
+    "Connection": "keep-alive",
+}
 
 
-# ── WebSocket — Sales Pipeline ─────────────────────────────────────────────────
+@app.get("/sse")
+async def sse_monitor():
+    queue: asyncio.Queue = asyncio.Queue(maxsize=200)
+    _sse_monitor_queues.add(queue)
 
-@app.websocket("/ws/sales")
-async def ws_sales(websocket: WebSocket):
-    await websocket.accept()
-    _ws_sales_clients.add(websocket)
-    try:
+    async def generate():
         try:
-            from src.sales import sales_state
-            leads   = sales_state.get_leads(limit=50)
-            signals = sales_state.get_signals(limit=20)
-            if leads:
-                await websocket.send_text(json.dumps({
-                    "type": "initial_data",
-                    "leads": leads,
-                    "signals": signals,
-                }))
-        except Exception:
+            recent = state.get_recent_alerts(20)
+            for alert in reversed(recent):
+                yield f"data: {json.dumps({'type': 'alert', 'data': alert})}\n\n"
+            while True:
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=20.0)
+                    yield f"data: {msg}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except (GeneratorExit, Exception):
             pass
+        finally:
+            _sse_monitor_queues.discard(queue)
 
-        while True:
+    return StreamingResponse(generate(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+@app.get("/sse/sales")
+async def sse_sales():
+    queue: asyncio.Queue = asyncio.Queue(maxsize=200)
+    _sse_sales_queues.add(queue)
+
+    async def generate():
+        try:
             try:
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
-                if data == "ping":
-                    await websocket.send_text(json.dumps({"type": "pong"}))
-            except asyncio.TimeoutError:
-                await websocket.send_text(json.dumps({
-                    "type": "heartbeat",
-                    "ts": datetime.utcnow().isoformat() + "Z",
-                }))
-            except WebSocketDisconnect:
-                break
-    except Exception:
-        pass
-    finally:
-        _ws_sales_clients.discard(websocket)
+                from src.sales import sales_state
+                leads   = sales_state.get_leads(limit=50)
+                signals = sales_state.get_signals(limit=20)
+                if leads:
+                    yield f"data: {json.dumps({'type': 'initial_data', 'leads': leads, 'signals': signals})}\n\n"
+            except Exception:
+                pass
+            while True:
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=20.0)
+                    yield f"data: {msg}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except (GeneratorExit, Exception):
+            pass
+        finally:
+            _sse_sales_queues.discard(queue)
+
+    return StreamingResponse(generate(), media_type="text/event-stream", headers=SSE_HEADERS)
 
 
 # ── REST — Hedge Fund Monitor ─────────────────────────────────────────────────
