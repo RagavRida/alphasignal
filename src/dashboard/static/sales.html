@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AlphaSignal — Sales Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/sales.css">
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="header">
+  <div class="header-logo">
+    <div class="logo-mark">α</div>
+    <div>
+      <div class="logo-name">AlphaSignal</div>
+      <div class="logo-sub">Sales Intelligence</div>
+    </div>
+  </div>
+  <nav class="header-nav">
+    <a href="/" class="nav-link">📈 Market Monitor</a>
+    <a href="/sales" class="nav-link active">🎯 Sales Pipeline</a>
+  </nav>
+  <div class="header-status">
+    <span class="status-dot" id="ws-dot"></span>
+    <span id="ws-label">Connecting…</span>
+  </div>
+</header>
+
+<!-- ── Brand Context Banner ── -->
+<div id="sales-brand-banner" class="sales-brand-banner" style="display:none"></div>
+
+<!-- ── ICP Input ── -->
+<section class="icp-section">
+  <div class="icp-card">
+    <div class="icp-title">
+      <span class="icp-icon">🎯</span>
+      Find Buyers — <span id="icp-brand-label">Your Brand</span>
+    </div>
+    <div class="icp-desc">Your ICP and competitor are auto-loaded from your brand profile. Edit below or click Run Pipeline to discover leads now.</div>
+
+    <div class="icp-examples">
+      <span class="example-label">Quick targets:</span>
+      <button class="example-chip" onclick="setExample(this)">B2B SaaS, Series A, hiring SDRs, India/US</button>
+      <button class="example-chip" onclick="setExample(this)">Fintech startups raised last 60 days, 50-500 employees</button>
+      <button class="example-chip" onclick="setExample(this)">Companies switching from Salesforce, enterprise</button>
+      <button class="example-chip" onclick="setExample(this)">HRTech Series B, US, hiring VP Sales</button>
+    </div>
+
+    <div class="icp-input-row">
+      <textarea id="icp-input" class="icp-textarea"
+        placeholder="e.g. B2B SaaS companies with 50–500 employees that raised Series A in the last 6 months and are hiring SDRs in India or US…"
+        rows="3"></textarea>
+    </div>
+
+    <div class="icp-controls">
+      <div class="icp-options">
+        <div class="option-group">
+          <label class="option-label">Max Leads</label>
+          <select id="max-leads" class="option-select">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="30">30</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label class="option-label">Competitor</label>
+          <input id="competitor-input" class="option-input" placeholder="e.g. HubSpot" type="text">
+        </div>
+        <div class="option-group toggle-group">
+          <label class="option-label">Auto-Send Step 1</label>
+          <label class="toggle">
+            <input type="checkbox" id="auto-send">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="run-actions">
+        <button id="run-btn" class="run-btn" onclick="runPipeline()">
+          <span class="run-icon">⚡</span>
+          Run Pipeline
+        </button>
+        <button id="demo-btn" class="demo-btn" onclick="runDemo()" title="Load pre-curated Natively AI demo data instantly — no API calls needed">
+          🎬 Demo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="pipeline-progress" id="pipeline-progress" style="display:none">
+    <div class="progress-steps">
+      <div class="progress-step" id="step-parse" title="AI/ML API — Claude parses your ICP into structured criteria">
+        <div class="step-dot"></div>
+        <div class="step-label">Parse ICP</div>
+        <div class="step-sub">AI/ML API</div>
+      </div>
+      <div class="progress-line"></div>
+      <div class="progress-step" id="step-discover" title="Bright Data MCP + SERP API — runs 8 search queries to find matching companies">
+        <div class="step-dot"></div>
+        <div class="step-label">Discover Leads</div>
+        <div class="step-sub">Bright Data MCP</div>
+      </div>
+      <div class="progress-line"></div>
+      <div class="progress-step" id="step-intent" title="Bright Data SERP API — monitors G2, Reddit, Hacker News for buying signals">
+        <div class="step-dot"></div>
+        <div class="step-label">Intent Monitor</div>
+        <div class="step-sub">SERP + Web Unlocker</div>
+      </div>
+      <div class="progress-line"></div>
+      <div class="progress-step" id="step-context" title="Bright Data Scraping Browser — fetches latest blog, jobs, and funding news per lead">
+        <div class="step-dot"></div>
+        <div class="step-label">Fetch Context</div>
+        <div class="step-sub">Scraping Browser</div>
+      </div>
+      <div class="progress-line"></div>
+      <div class="progress-step" id="step-email" title="AI/ML API (Claude) — generates 4-step personalized email sequence for each lead">
+        <div class="step-dot"></div>
+        <div class="step-label">Generate Emails</div>
+        <div class="step-sub">AI/ML API</div>
+      </div>
+    </div>
+    <div class="progress-status" id="progress-status">Initializing…</div>
+  </div>
+</section>
+
+<!-- ── Stats Bar ── -->
+<div class="stats-bar" id="stats-bar">
+  <div class="stat-card">
+    <div class="stat-value" id="stat-leads">0</div>
+    <div class="stat-label">Leads Found</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="stat-emails">0</div>
+    <div class="stat-label">Emails Ready</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="stat-signals">0</div>
+    <div class="stat-label">Intent Signals</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="stat-avg-score">–</div>
+    <div class="stat-label">Avg ICP Score</div>
+  </div>
+</div>
+
+<!-- ── Main Content ── -->
+<div class="main-content">
+
+  <!-- Lead Table -->
+  <section class="leads-section">
+    <div class="section-header">
+      <h2 class="section-title">🏢 Discovered Leads</h2>
+      <div class="section-actions">
+        <button class="action-btn" onclick="exportLeads()">⬇ Export CSV</button>
+        <input type="text" class="filter-input" id="lead-filter" placeholder="Filter leads…" oninput="filterLeads()">
+      </div>
+    </div>
+
+    <div class="leads-table-wrap">
+      <table class="leads-table" id="leads-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable('score')">Score ↕</th>
+            <th onclick="sortTable('company_name')">Company ↕</th>
+            <th>Funding</th>
+            <th>Stage</th>
+            <th>Geo</th>
+            <th>Signals</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="leads-tbody">
+          <tr class="empty-row">
+            <td colspan="8">
+              <div class="empty-state">
+                <div class="empty-icon">🎯</div>
+                <div class="empty-text">Enter an ICP above and click Run Pipeline to discover leads</div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Intent Signals -->
+  <section class="signals-section">
+    <div class="section-header">
+      <h2 class="section-title">⚡ Live Intent Signals</h2>
+    </div>
+    <div class="signals-list" id="signals-list">
+      <div class="empty-state-small">No signals yet — run the pipeline to start monitoring</div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ── Email Drawer ── -->
+<div class="email-drawer" id="email-drawer">
+  <div class="drawer-overlay" onclick="closeDrawer()"></div>
+  <div class="drawer-panel">
+    <div class="drawer-header">
+      <div style="flex:1;min-width:0">
+        <div class="drawer-title" id="drawer-company">Email Sequence</div>
+        <div class="drawer-sub" id="drawer-contact">Loading…</div>
+        <!-- Contact pills: LinkedIn, email, website — populated by JS -->
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+
+    <!-- Manual email input row — inserted by JS before email-tabs -->
+    <div class="email-tabs" id="email-tabs"></div>
+    <div class="email-viewer" id="email-viewer">
+      <div class="email-loading">Loading emails…</div>
+    </div>
+
+    <div class="drawer-actions">
+      <button class="action-btn primary" id="copy-btn" onclick="copyEmail()">📋 Copy Email</button>
+      <button class="action-btn" id="copy-dm-btn" onclick="copyDM()">💬 LinkedIn DM</button>
+      <button class="action-btn" id="mailto-action-btn" onclick="openMailto()" title="Open in your default mail client">✉ Open in Mail</button>
+      <button class="action-btn send-btn" id="send-btn" onclick="sendEmail()">📨 Send via Resend</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/sales.js"></script>
+</body>
+</html>

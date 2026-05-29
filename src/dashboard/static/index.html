@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AlphaSignal — Unified Intelligence Platform</title>
+<meta name="description" content="Real-time market intelligence + B2B sales pipeline powered by Bright Data and AI/ML API."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/static/style.css"/>
+<link rel="stylesheet" href="/static/unified.css"/>
+<link rel="stylesheet" href="/static/sales.css"/>
+</head>
+<body>
+
+<!-- ══ SIDEBAR NAV ══════════════════════════════════════════════════════════ -->
+<nav class="sidebar-nav" id="sidebar-nav">
+  <div class="sn-logo">
+    <div class="sn-logo-mark">α</div>
+    <div class="sn-logo-text">
+      <div class="sn-logo-name">AlphaSignal</div>
+      <div class="sn-logo-sub">Intelligence Platform</div>
+    </div>
+  </div>
+
+  <div class="sn-section-label">MONITORS</div>
+  <button class="sn-item active" data-view="market" onclick="switchView('market', this)">
+    <span class="sn-icon">📈</span>
+    <span class="sn-label">Market Intelligence</span>
+    <span class="sn-badge" id="nav-alert-count">0</span>
+  </button>
+  <button class="sn-item" data-view="sales" onclick="switchView('sales', this)">
+    <span class="sn-icon">🎯</span>
+    <span class="sn-label">Sales Pipeline</span>
+    <span class="sn-badge" id="nav-lead-count">0</span>
+  </button>
+
+  <div class="sn-section-label">LIVE FEED</div>
+  <button class="sn-item" data-view="unified" onclick="switchView('unified', this)">
+    <span class="sn-icon">⚡</span>
+    <span class="sn-label">Unified Signal Feed</span>
+    <span class="sn-badge pulse" id="nav-signal-count">0</span>
+  </button>
+
+  <div class="sn-divider"></div>
+  <div class="sn-section-label">POWERED BY</div>
+  <div class="sn-powered-row">
+    <div class="sn-powered-chip bd-powered">
+      <span class="sn-powered-dot" style="background:#0ea5e9"></span>
+      Bright Data
+    </div>
+    <div class="sn-powered-chip aiml-powered">
+      <span class="sn-powered-dot" style="background:#a855f7"></span>
+      AI/ML API
+    </div>
+  </div>
+
+  <div class="sn-section-label" style="margin-top:8px">AI/ML API</div>
+  <div class="sn-bd-products">
+    <div class="sn-bd-item"><span class="sn-bd-dot active" style="background:#a855f7"></span>Brand Analysis</div>
+    <div class="sn-bd-item"><span class="sn-bd-dot active" style="background:#a855f7"></span>ICP Generation</div>
+    <div class="sn-bd-item"><span class="sn-bd-dot active" style="background:#a855f7"></span>Email Sequences</div>
+    <div class="sn-bd-item"><span class="sn-bd-dot active" style="background:#a855f7"></span>Alert Generation</div>
+  </div>
+
+
+  <div class="sn-footer">
+    <button class="sn-edit-profile-btn" onclick="editProfile()" title="Re-analyze or correct your brand profile">
+      ✏️ Edit Company Profile
+    </button>
+    <div class="sn-ws-status">
+      <span class="sn-ws-dot" id="sn-ws-dot"></span>
+      <span id="sn-ws-label">Connecting…</span>
+    </div>
+    <button class="sn-run-btn" id="btn-run-once" onclick="triggerCycle()">▶ Run Cycle</button>
+  </div>
+</nav>
+
+<!-- ══ TOP BAR ═════════════════════════════════════════════════════════════ -->
+<div class="top-bar">
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <div class="top-bar-title" id="top-bar-title">Market Intelligence</div>
+  <div class="top-bar-stats">
+    <div class="tbs"><span class="tbs-v" id="total-alerts">—</span><span class="tbs-l">Alerts</span></div>
+    <div class="tbs"><span class="tbs-v" id="avg-confidence">—</span><span class="tbs-l">Avg Conf</span></div>
+    <div class="tbs"><span class="tbs-v" id="companies-count">—</span><span class="tbs-l">Companies</span></div>
+    <div class="tbs"><span class="tbs-v" id="nav-leads-inline">—</span><span class="tbs-l">Leads</span></div>
+  </div>
+  <div class="top-bar-right">
+    <div class="status-badge" id="status-badge">
+      <span class="status-dot"></span>
+      <span id="status-text">Connecting…</span>
+    </div>
+    <div class="mode-badge" id="mode-badge">LIVE</div>
+    <div class="sponsor-chips">
+      <span class="sponsor-chip bd-chip">Bright Data</span>
+      <span class="sponsor-chip aiml-chip">AI/ML API</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ VIEWS CONTAINER ═════════════════════════════════════════════════════ -->
+<div class="views-container">
+
+<!-- ── VIEW: Market Intelligence ──────────────────────────────────────── -->
+<div class="view" id="view-market">
+  <div class="main-grid">
+
+    <!-- Alert Feed -->
+    <section class="panel panel-alerts">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" stroke="#ff4d6d" stroke-width="1.5"/>
+            <path d="M8 4v4M8 10v1" stroke="#ff4d6d" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Live Alert Feed
+        </h2>
+        <span class="panel-sub" id="ws-status">● Connecting</span>
+      </div>
+
+      <div class="alert-filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="growth_thesis">📈 Growth</button>
+        <button class="filter-btn" data-filter="competitive_threat">⚔️ Threat</button>
+        <button class="filter-btn" data-filter="financial_distress">🚨 Distress</button>
+        <button class="filter-btn" data-filter="supplier_risk">⛓️ Supplier</button>
+        <button class="filter-btn" data-filter="market_disruption">💥 Disruption</button>
+      </div>
+
+      <div class="alert-feed" id="alert-feed">
+        <div class="empty-state">
+          <div class="spinner"></div>
+          <p>Monitoring markets…</p>
+          <p class="empty-sub">Alerts will appear here in real-time</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Sidebar -->
+    <aside class="sidebar">
+      <div class="panel panel-sm">
+        <div class="panel-header"><h2 class="panel-title">Bright Data Products</h2></div>
+        <div class="bd-products">
+          <div class="bd-product"><div class="bd-icon bd-mcp">M</div><div><div class="bd-name">MCP Server</div><div class="bd-desc">Central orchestration</div></div><div class="bd-status active">●</div></div>
+          <div class="bd-product"><div class="bd-icon bd-serp">S</div><div><div class="bd-name">SERP API</div><div class="bd-desc">Jobs · Funding · News</div></div><div class="bd-status active">●</div></div>
+          <div class="bd-product"><div class="bd-icon bd-scraper">W</div><div><div class="bd-name">Web Scraper API</div><div class="bd-desc">LinkedIn · E-commerce</div></div><div class="bd-status active">●</div></div>
+          <div class="bd-product"><div class="bd-icon bd-browser">B</div><div><div class="bd-name">Scraping Browser</div><div class="bd-desc">Dynamic pricing · Traffic</div></div><div class="bd-status active">●</div></div>
+          <div class="bd-product"><div class="bd-icon bd-unlocker">U</div><div><div class="bd-name">Web Unlocker</div><div class="bd-desc">SEC EDGAR · Credit data</div></div><div class="bd-status active">●</div></div>
+        </div>
+      </div>
+      <div class="panel panel-sm">
+        <div class="panel-header"><h2 class="panel-title">Alert Distribution</h2></div>
+        <div class="distribution-chart" id="distribution-chart">
+          <div class="dist-row"><span class="dist-label">📈 Growth Thesis</span><div class="dist-bar-wrap"><div class="dist-bar" data-type="growth_thesis" style="width:0%"></div></div><span class="dist-count" id="dist-growth">0</span></div>
+          <div class="dist-row"><span class="dist-label">⚔️ Comp. Threat</span><div class="dist-bar-wrap"><div class="dist-bar" data-type="competitive_threat" style="width:0%"></div></div><span class="dist-count" id="dist-threat">0</span></div>
+          <div class="dist-row"><span class="dist-label">🚨 Distress</span><div class="dist-bar-wrap"><div class="dist-bar" data-type="financial_distress" style="width:0%"></div></div><span class="dist-count" id="dist-distress">0</span></div>
+          <div class="dist-row"><span class="dist-label">⛓️ Supplier</span><div class="dist-bar-wrap"><div class="dist-bar" data-type="supplier_risk" style="width:0%"></div></div><span class="dist-count" id="dist-supplier">0</span></div>
+          <div class="dist-row"><span class="dist-label">💥 Disruption</span><div class="dist-bar-wrap"><div class="dist-bar" data-type="market_disruption" style="width:0%"></div></div><span class="dist-count" id="dist-disruption">0</span></div>
+        </div>
+      </div>
+      <div class="panel panel-sm">
+        <div class="panel-header"><h2 class="panel-title">Watch List</h2></div>
+        <div class="company-list" id="company-list"><div class="loading-text">Loading…</div></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ── VIEW: Sales Pipeline ─────────────────────────────────────────────── -->
+<div class="view hidden" id="view-sales">
+  <!-- Brand Context Banner -->
+  <div id="sales-brand-banner" class="sales-brand-banner" style="display:none"></div>
+
+  <!-- ICP Input -->
+  <section class="icp-section" style="padding:20px 20px 0">
+    <div class="icp-card">
+      <div class="icp-title"><span class="icp-icon">🎯</span>Find Buyers — <span id="icp-brand-label">Your Brand</span></div>
+      <div class="icp-desc">ICP and competitor are auto-loaded from your brand profile. Edit below or run the pipeline now.</div>
+      <div class="icp-examples">
+        <span class="example-label">Quick:</span>
+        <button class="example-chip" onclick="setICP(this)">B2B SaaS, Series A, hiring SDRs, India/US</button>
+        <button class="example-chip" onclick="setICP(this)">Fintech startups raised last 60 days</button>
+        <button class="example-chip" onclick="setICP(this)">Companies switching from Salesforce</button>
+      </div>
+      <textarea id="icp-input" class="icp-textarea" placeholder="e.g. B2B SaaS companies, 50–500 employees, raised Series A in last 6 months, hiring SDRs…" rows="3"></textarea>
+      <div class="icp-controls">
+        <div class="icp-options">
+          <div class="option-group">
+            <label class="option-label">Max Leads</label>
+            <select id="max-leads" class="option-select"><option value="10">10</option><option value="20" selected>20</option><option value="30">30</option></select>
+          </div>
+          <div class="option-group">
+            <label class="option-label">Competitor</label>
+            <input id="competitor-input" class="option-input" placeholder="e.g. HubSpot" type="text"/>
+          </div>
+          <div class="option-group toggle-group">
+            <label class="option-label">Auto-Send</label>
+            <label class="toggle"><input type="checkbox" id="auto-send"/><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+        <button id="run-pipeline-btn" class="run-btn" onclick="runPipeline()"><span>⚡</span> Run Pipeline</button>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="pipeline-progress" id="pipeline-progress" style="display:none">
+      <div class="progress-steps">
+        <div class="progress-step" id="step-parse"><div class="step-dot"></div><div class="step-label">Parse ICP</div></div>
+        <div class="progress-line"></div>
+        <div class="progress-step" id="step-discover"><div class="step-dot"></div><div class="step-label">Discover</div></div>
+        <div class="progress-line"></div>
+        <div class="progress-step" id="step-intent"><div class="step-dot"></div><div class="step-label">Intent</div></div>
+        <div class="progress-line"></div>
+        <div class="progress-step" id="step-context"><div class="step-dot"></div><div class="step-label">Context</div></div>
+        <div class="progress-line"></div>
+        <div class="progress-step" id="step-email"><div class="step-dot"></div><div class="step-label">Emails</div></div>
+      </div>
+      <div class="progress-status" id="progress-status">Initializing…</div>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <div class="stats-bar" style="padding:12px 20px">
+    <div class="stat-card"><div class="stat-value" id="stat-leads">0</div><div class="stat-label">Leads Found</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-emails">0</div><div class="stat-label">Emails Ready</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-signals">0</div><div class="stat-label">Intent Signals</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-avg-score">–</div><div class="stat-label">Avg ICP Score</div></div>
+  </div>
+
+  <!-- Leads + Signals -->
+  <div class="main-content" style="padding:0 20px 20px;display:grid;grid-template-columns:1fr 320px;gap:16px">
+    <section class="leads-section">
+      <div class="section-header">
+        <h2 class="section-title">🏢 Discovered Leads</h2>
+        <div class="section-actions">
+          <button class="action-btn" onclick="exportLeads()">⬇ Export CSV</button>
+          <input type="text" class="filter-input" id="lead-filter" placeholder="Filter…" oninput="filterLeads()"/>
+        </div>
+      </div>
+      <div class="leads-table-wrap">
+        <table class="leads-table" id="leads-table">
+          <thead><tr>
+            <th onclick="sortTable('score')">Score ↕</th>
+            <th onclick="sortTable('company_name')">Company ↕</th>
+            <th>Funding</th><th>Stage</th><th>Geo</th><th>Signals</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="leads-tbody">
+            <tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">Enter an ICP above and click Run Pipeline</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="signals-section">
+      <div class="section-header"><h2 class="section-title">⚡ Intent Signals</h2></div>
+      <div class="signals-list" id="signals-list"><div class="empty-state-small">Run the pipeline to detect signals</div></div>
+    </section>
+  </div>
+</div>
+
+<!-- ── VIEW: Unified Signal Feed ────────────────────────────────────────── -->
+<div class="view hidden" id="view-unified">
+  <div class="unified-header">
+    <h2 class="unified-title">⚡ Unified Intelligence Feed</h2>
+    <p class="unified-sub">All signals from both market monitoring and sales pipeline — in one real-time stream</p>
+    <div class="unified-filters">
+      <button class="filter-btn active" data-uf="all" onclick="filterUnified('all', this)">All</button>
+      <button class="filter-btn" data-uf="market" onclick="filterUnified('market', this)">📈 Market Alerts</button>
+      <button class="filter-btn" data-uf="sales" onclick="filterUnified('sales', this)">🎯 Sales Signals</button>
+      <button class="filter-btn" data-uf="cross" onclick="filterUnified('cross', this)">🔗 Cross-Signal</button>
+    </div>
+  </div>
+  <div class="unified-feed" id="unified-feed">
+    <div class="empty-state"><div class="spinner"></div><p>Waiting for signals…</p></div>
+  </div>
+</div>
+
+</div><!-- end views-container -->
+
+<!-- ══ ALERT DETAIL MODAL ══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
+  <div class="modal" id="modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-content"></div>
+    <!-- Cross-action button -->
+    <div class="modal-cross-action" id="modal-cross-action" style="display:none">
+      <div class="cross-action-title">🔗 Sales Opportunity Detected</div>
+      <div class="cross-action-desc" id="cross-action-desc"></div>
+      <button class="cross-action-btn" id="cross-action-btn" onclick="openSalesFromAlert()">
+        🎯 Find Competitor Leads → Open Sales Pipeline
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EMAIL DRAWER ═════════════════════════════════════════════════════════ -->
+<div class="email-drawer" id="email-drawer">
+  <div class="drawer-overlay" onclick="closeDrawer()"></div>
+  <div class="drawer-panel">
+    <div class="drawer-header">
+      <div style="flex:1;min-width:0">
+        <div class="drawer-title" id="drawer-company">Email Sequence</div>
+        <div class="drawer-sub" id="drawer-contact"></div>
+        <!-- Contact pills populated by JS -->
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+    <!-- Manual email input row inserted by JS -->
+    <div class="email-tabs" id="email-tabs"></div>
+    <div class="email-viewer" id="email-viewer"><div class="email-loading">Loading…</div></div>
+    <div class="drawer-actions">
+      <button class="action-btn primary" id="copy-btn" onclick="copyEmail()">📋 Copy Email</button>
+      <button class="action-btn" id="copy-dm-btn" onclick="copyDM()">💬 LinkedIn DM</button>
+      <button class="action-btn" id="mailto-action-btn" onclick="openMailto()" title="Open in your default mail client">✉ Open in Mail</button>
+      <button class="action-btn send-btn" id="send-btn" onclick="sendEmail()">📨 Send via Resend</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ONBOARDING OVERLAY ═══════════════════════════════════════════════════ -->
+<div class="onboarding-overlay" id="onboarding-overlay">
+  <div class="onboarding-modal" id="onboarding-modal">
+
+    <!-- ── STATE 1: Brand Input ────────────────────────────────────────── -->
+    <div id="ob-state-input">
+      <div class="ob-header">
+        <div class="ob-logo">α</div>
+        <h1 class="ob-title">Welcome to AlphaSignal</h1>
+        <p class="ob-sub">Just type your brand name — <strong>AI/ML API</strong> will research everything automatically using <strong>Bright Data</strong> SERP.</p>
+      </div>
+
+      <div class="ob-brand-wrap">
+        <div class="ob-brand-row">
+          <input id="ob-brand-input" class="ob-brand-input" type="text"
+            placeholder="Brand name… e.g. Natively AI, Stripe, Notion"
+            onkeydown="if(event.key==='Enter') document.getElementById('ob-website-input').focus()"/>
+        </div>
+        <div class="ob-brand-row" style="margin-top:8px">
+          <input id="ob-website-input" class="ob-brand-input" type="url"
+            placeholder="Website URL (optional but recommended)… e.g. https://nativelyai.com"
+            onkeydown="if(event.key==='Enter') analyzeBrand()"
+            style="font-size:13px"/>
+          <button class="ob-analyze-btn" id="ob-analyze-btn" onclick="analyzeBrand()">
+            <span class="ob-analyze-icon">🔍</span>
+            <span>Analyze with AI</span>
+          </button>
+        </div>
+        <div class="ob-brand-hint" id="ob-brand-hint">Website is scraped first for accurate data — then Bright Data SERP — then AI/ML API knowledge</div>
+      </div>
+
+      <!-- Analyzing state (hidden by default) -->
+      <div class="ob-analyzing" id="ob-analyzing" style="display:none">
+        <div class="ob-analyzing-steps">
+          <div class="ob-astep" id="oas-serp">
+            <div class="ob-astep-dot"></div>
+            <span>Searching web for brand intelligence…</span>
+          </div>
+          <div class="ob-astep" id="oas-claude">
+            <div class="ob-astep-dot"></div>
+            <span>AI/ML API synthesizing profile + ICP + watch list…</span>
+          </div>
+          <div class="ob-astep" id="oas-done">
+            <div class="ob-astep-dot"></div>
+            <span>Building your personalized dashboard…</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ob-examples-row">
+        <span class="ob-eg-label">Try:</span>
+        <button class="ob-eg-chip" onclick="tryBrand('Stripe')">Stripe</button>
+        <button class="ob-eg-chip" onclick="tryBrand('HubSpot')">HubSpot</button>
+        <button class="ob-eg-chip" onclick="tryBrand('Notion')">Notion</button>
+        <button class="ob-eg-chip" onclick="tryBrand('Apollo.io')">Apollo.io</button>
+        <button class="ob-eg-chip" onclick="tryBrand('Salesforce')">Salesforce</button>
+      </div>
+    </div>
+
+    <!-- ── STATE 2: AI Review ──────────────────────────────────────────── -->
+    <div id="ob-state-review" style="display:none">
+      <div class="ob-review-header">
+        <button class="ob-back-small" onclick="obBackToInput()">← Change brand</button>
+        <div class="ob-review-badge">🤖 AI/ML API Analysis</div>
+      </div>
+      <h2 class="ob-review-title">Review what we found for <span id="ob-review-brand"></span></h2>
+      <p class="ob-review-sub">Everything below was auto-generated. Edit any field before saving.</p>
+
+      <div class="ob-review-cards">
+
+        <!-- Card: Product -->
+        <div class="ob-review-card">
+          <div class="ob-rc-label">🏢 What they do</div>
+          <textarea id="rv-product" class="ob-rv-textarea" rows="2"></textarea>
+        </div>
+
+        <!-- Card: Industry + Website -->
+        <div class="ob-review-card ob-review-2col">
+          <div>
+            <div class="ob-rc-label">🏭 Industry</div>
+            <input id="rv-industry" class="ob-rv-input" type="text"/>
+          </div>
+          <div>
+            <div class="ob-rc-label">🌐 Website</div>
+            <input id="rv-website" class="ob-rv-input" type="text" placeholder="https://…"/>
+          </div>
+        </div>
+
+        <!-- Card: ICP -->
+        <div class="ob-review-card">
+          <div class="ob-rc-label">🎯 Ideal Customer Profile (ICP)</div>
+          <textarea id="rv-icp" class="ob-rv-textarea" rows="3"></textarea>
+        </div>
+
+        <!-- Card: Competitors -->
+        <div class="ob-review-card">
+          <div class="ob-rc-label">⚔️ Competitors to Monitor</div>
+          <div class="ob-comp-tags" id="rv-competitors"></div>
+          <input id="rv-comp-add" class="ob-rv-input" type="text"
+            placeholder="Add competitor… press Enter"
+            onkeydown="if(event.key==='Enter') addCompetitor(this.value)"/>
+        </div>
+
+        <!-- Card: Watch List Preview -->
+        <div class="ob-review-card">
+          <div class="ob-rc-label">📋 Auto Watch List <span class="ob-rc-badge">AI generated · updates daily</span></div>
+          <div class="ob-watchlist-preview" id="rv-watchlist"></div>
+        </div>
+
+        <!-- Sender info -->
+        <div class="ob-review-card ob-review-2col">
+          <div>
+            <div class="ob-rc-label">👤 Your Name</div>
+            <input id="rv-sender-name" class="ob-rv-input" type="text" placeholder="Your name"/>
+          </div>
+          <div>
+            <div class="ob-rc-label">💼 Your Title</div>
+            <input id="rv-sender-title" class="ob-rv-input" type="text" placeholder="Founder / Sales Lead"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="ob-review-actions">
+        <button class="ob-save-btn" id="ob-save-btn" onclick="saveProfile()">
+          ⚡ Set Up AlphaSignal
+        </button>
+      </div>
+      <div class="ob-saving" id="ob-saving" style="display:none">
+        <div class="ob-spinner"></div>
+        <span>Saving profile and generating watch list with AI…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+<script src="/static/sales.js"></script>
+<script src="/static/unified.js"></script>
+<script src="/static/onboarding.js"></script>
+</body>
+</html>
