@@ -1,0 +1,102 @@
+alerts:
+  jsonl_path: data/alerts.jsonl
+  push_to_slack: false
+  save_to_jsonl: true
+dashboard:
+  host: 0.0.0.0
+  max_alerts_in_feed: 50
+  port: 8080
+logging:
+  file: logs/monitor.log
+  level: INFO
+monitoring:
+  check_interval_seconds: 3600
+  financial_check_every_n_cycles: 24
+  max_concurrent_companies: 5
+  traffic_check_every_n_cycles: 24
+thresholds:
+  correlation_match_score: 0.6
+  funding_min_amount_m: 10
+  hiring_freeze_threshold: 90
+  hiring_velocity_alert: 50
+  minimum_confidence: 65
+  pricing_change_alert: 10
+  traffic_growth_alert: 30
+watch_list:
+  companies:
+  - category: direct_competitor
+    name: Replit
+    pricing_url: https://replit.com/pricing
+    reason: Direct competitor in AI-powered coding platform space with similar no-code
+      development capabilities
+    suppliers: []
+    ticker: ''
+  - category: direct_competitor
+    name: Bubble
+    pricing_url: https://bubble.io/pricing
+    reason: Major no-code platform competitor expanding into AI integration features
+    suppliers: []
+    ticker: ''
+  - category: direct_competitor
+    name: Vercel
+    pricing_url: https://vercel.com/pricing
+    reason: Competes in developer tooling space with v0.dev AI code generation product
+    suppliers: []
+    ticker: ''
+  - category: direct_competitor
+    name: Retool
+    pricing_url: https://retool.com/pricing
+    reason: Low-code platform targeting similar developer and product team audience
+    suppliers: []
+    ticker: ''
+  - category: icp_prospect
+    name: Notion
+    pricing_url: https://www.notion.so/pricing
+    reason: Series B company actively integrating AI features, fits ICP profile for
+      AI-native application development
+    suppliers: []
+    ticker: ''
+  - category: icp_prospect
+    name: Figma
+    pricing_url: https://www.figma.com/pricing
+    reason: Product-focused company with large developer and design teams, ideal ICP
+      match for AI development tools
+    suppliers: []
+    ticker: ''
+  - category: icp_prospect
+    name: Canva
+    pricing_url: https://www.canva.com/pricing
+    reason: Tech company investing heavily in AI features, matches ICP for AI-native
+      application development
+    suppliers: []
+    ticker: ''
+  - category: icp_prospect
+    name: Airtable
+    pricing_url: https://airtable.com/pricing
+    reason: Mid-market SaaS company with product teams that could benefit from AI
+      development acceleration
+    suppliers: []
+    ticker: ''
+  - category: market_signal
+    name: Microsoft
+    pricing_url: https://azure.microsoft.com/en-us/pricing
+    reason: Industry leader in AI tooling and cloud infrastructure, sets market direction
+      with GitHub Copilot and Azure AI
+    suppliers: []
+    ticker: MSFT
+  - category: market_signal
+    name: Amazon
+    pricing_url: https://aws.amazon.com/pricing
+    reason: Major cloud provider with AI/ML services, influences compute infrastructure
+      pricing and availability
+    suppliers: []
+    ticker: AMZN
+  - category: market_signal
+    name: OpenAI
+    pricing_url: https://openai.com/pricing
+    reason: Key AI model provider whose API changes and pricing affect entire AI development
+      ecosystem
+    suppliers: []
+    ticker: ''
+  generated_at: '2026-05-29T07:33:26.742462Z'
+  generated_from: company_profile
