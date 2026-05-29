@@ -8,7 +8,7 @@ Output: ICP(industry=["SaaS"], stage=["Series_A"], signals=["hiring_sdrs"], ...)
 
 import json
 import os
-from openai import OpenAI
+from src.llm import OpenAI
 from src.sales.models import ICP
 
 

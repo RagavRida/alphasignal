@@ -10,7 +10,7 @@ import asyncio
 from datetime import datetime, date
 from pathlib import Path
 from typing import Optional
-from openai import OpenAI
+from src.llm import OpenAI
 
 PROFILE_PATH = Path("data/company_profile.json")
 CONFIG_PATH  = Path("config.yaml")

@@ -36,7 +36,7 @@ Always include the bear case. Output ONLY valid JSON with no markdown wrapping."
 
         if api_key and not demo_mode:
             try:
-                from openai import OpenAI
+                from src.llm import OpenAI
                 self.client = OpenAI(api_key=api_key, base_url=base_url)
             except ImportError:
                 print("[AlertGenerator] openai package not installed — using demo templates")

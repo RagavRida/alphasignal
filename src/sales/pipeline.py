@@ -26,7 +26,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich import box
-from openai import OpenAI
+from src.llm import OpenAI
 
 from src.bright_data_client import BrightDataClient
 from src.sales.icp_parser import ICPParser

@@ -18,7 +18,7 @@ import json
 import re
 from datetime import datetime
 from typing import Optional
-from openai import OpenAI
+from src.llm import OpenAI
 
 from src.bright_data_client import BrightDataClient
 from src.sales.models import ICP, Lead, Contact

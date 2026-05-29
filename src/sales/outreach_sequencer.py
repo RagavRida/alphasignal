@@ -19,7 +19,7 @@ import asyncio
 from datetime import datetime
 from typing import Optional
 
-from openai import OpenAI
+from src.llm import OpenAI
 
 from src.sales.models import Lead, PersonalizationContext, OutreachEmail, CRMEntry
 
