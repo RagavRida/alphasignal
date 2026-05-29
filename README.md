@@ -149,31 +149,119 @@ This isn't "use whichever API is cheapest." Each product is chosen because other
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    subgraph INPUT["Input Layer"]
+        A["🏢 Brand Onboarding\n(company name)"]
+        B["📋 ICP Description\n(free text)"]
+        C["👁️ Watch List\n(config.yaml)"]
+    end
+
+    subgraph BD["Bright Data Infrastructure"]
+        BD1["MCP Server\nscrape_as_markdown, extract"]
+        BD2["SERP API\nGoogle search at scale"]
+        BD3["Web Scraper API\npricing pages, traffic"]
+        BD4["Scraping Browser\nJS-rendered pages"]
+        BD5["Web Unlocker\nCAPTCHA-protected sites"]
+    end
+
+    subgraph ENGINE1["Engine 1 — Market Monitor (runs every hour)"]
+        D1["HiringVelocityDetector"]
+        D2["PricingChangeDetector"]
+        D3["FundingDetector"]
+        D4["NewsDetector"]
+        D5["FinancialHealthDetector"]
+        D6["SupplierRiskDetector"]
+        D7["WebTrafficDetector"]
+        SC["SignalCorrelator\n5 thesis rules\ngrowth · threat · distress\nsupplier_risk · disruption"]
+        AG["AlertGenerator\nClaude writes memo\nconfidence + direction"]
+    end
+
+    subgraph ENGINE2["Engine 2 — Sales Pipeline (on demand)"]
+        E1["ICP Parser\nClaude → 8 search queries"]
+        E2["Lead Discovery\nSERP × 8 → scored leads"]
+        E3["Intent Monitor\nG2 · Reddit · HN · Glassdoor"]
+        E4["Context Fetcher\nblog · jobs · press"]
+        E5["Outreach Sequencer\nClaude → 4-step email\n+ LinkedIn DM"]
+    end
+
+    subgraph CROSS["Cross-Signal Engine"]
+        CS["Funding alert detected\n→ auto-find similar companies\n→ run intent monitoring\n→ generate outreach"]
+    end
+
+    subgraph OUTPUT["Output Layer"]
+        DB["SQLite\nalerts · leads · emails · signals"]
+        SSE["SSE Stream\n/sse · /sse/sales"]
+        UI["Live Dashboard\nMarket Monitor + Sales Pipeline"]
+        CSV["CSV Export"]
+        EMAIL["Resend\none-click send"]
+    end
+
+    A -->|"SERP + scrape website"| BD1
+    A -->|"brand research"| BD2
+    C --> ENGINE1
+
+    BD4 --> D1
+    BD3 --> D2
+    BD2 --> D3
+    BD2 --> D4
+    BD5 --> D5
+    BD2 --> D6
+    BD5 --> D6
+    BD3 --> D7
+
+    D1 & D2 & D3 & D4 & D5 & D6 & D7 --> SC
+    SC -->|"thesis matched"| AG
+    AG --> DB
+    AG -->|"funding alert"| CS
+
+    B --> E1
+    E1 --> E2
+    E2 -->|"SERP × 8 queries"| BD2
+    E2 --> E3
+    E3 -->|"G2 · Glassdoor"| BD5
+    E3 -->|"Reddit · HN"| BD2
+    E2 --> E4
+    E4 -->|"blog · jobs"| BD1
+    E4 --> E5
+    CS --> E2
+
+    DB --> SSE
+    SSE --> UI
+    UI --> CSV
+    UI --> EMAIL
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     AlphaSignal                             │
-│                                                             │
-│  ┌──────────────┐      ┌──────────────────────────────────┐ │
-│  │ Brand Setup  │      │     Market Monitor (hourly)      │ │
-│  │              │      │                                  │ │
-│  │ SERP → scrape│      │  7 Detectors (parallel)          │ │
-│  │ Claude →     │      │  ├─ HiringVelocity               │ │
-│  │ profile.json │      │  ├─ PricingChange                │ │
-│  └──────────────┘      │  ├─ FundingDetector              │ │
-│                        │  ├─ NewsDetector                 │ │
-│  ┌──────────────┐      │  ├─ FinancialHealth              │ │
-│  │ Sales Engine │      │  ├─ SupplierRisk                 │ │
-│  │ (on demand)  │      │  └─ WebTraffic                   │ │
-│  │              │      │         ↓                        │ │
-│  │ ICP Parser   │      │  SignalCorrelator                 │ │
-│  │ → Leads      │      │  (5 thesis patterns)             │ │
-│  │ → Intent     │      │         ↓                        │ │
-│  │ → Context    │◄─────│  AlertGenerator (Claude)         │ │
-│  │ → Outreach   │      │  → structured alert + direction  │ │
-│  └──────────────┘      └──────────────────────────────────┘ │
-│                                   ↓                         │
-│              SSE stream → live dashboard                     │
-└─────────────────────────────────────────────────────────────┘
+
+### Data flow summary
+
+```
+Brand name
+  └─ SERP + web scrape → company profile (competitors, ICP, stage)
+       └─ populates config.yaml watch list
+
+Every hour (Market Monitor):
+  watch list companies
+    └─ 7 detectors run in parallel, each hitting a different Bright Data product
+         └─ normalized signals: {type, value, delta, confidence, evidence_url}
+              └─ SignalCorrelator: test 5 cross-signal thesis patterns
+                   └─ thesis match → Claude writes investment alert
+                        └─ SSE stream → dashboard + SQLite
+
+On demand (Sales Pipeline):
+  ICP text
+    └─ Claude → 8 targeted Google queries
+         └─ SERP API → company candidates (de-duped)
+              └─ Claude scores each 0–100 vs ICP
+                   └─ score ≥ 60 → intent monitoring (G2/Reddit/HN)
+                        └─ context fetch (blog/jobs via MCP)
+                             └─ Claude → 4-step email sequence + LinkedIn DM
+                                  └─ SSE stream → lead appears in dashboard
+
+Cross-signal (automatic):
+  funding alert fired
+    └─ extract funded company profile
+         └─ find 10 similar companies (same stage + sector)
+              └─ run intent + outreach pipeline on all of them
 ```
 
 ---
@@ -280,4 +368,4 @@ These are configurable in `config.yaml`:
 
 ---
 
-*Built for the Bright Data Hackathon 2025.*
+*Built for the Bright Data Hackathon 2026.*
