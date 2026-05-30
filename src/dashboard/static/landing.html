@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AlphaSignal — Autonomous Market Intelligence</title>
+<meta name="description" content="AlphaSignal watches competitors, detects buying signals across 7 data streams, and generates personalized outreach — autonomously."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:        #060a12;
+  --bg-card:   #0d1220;
+  --bg-card2:  #111827;
+  --border:    rgba(255,255,255,0.06);
+  --accent:    #00d4ff;
+  --accent2:   #7c3aed;
+  --green:     #00e676;
+  --orange:    #ff9800;
+  --red:       #ff4d6d;
+  --yellow:    #ffd600;
+  --text:      #e8edf5;
+  --muted:     #8b95a8;
+  --dimmer:    #4a5568;
+  --sans:      'Inter', system-ui, sans-serif;
+  --mono:      'JetBrains Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+
+/* ── Canvas background ─────────────────────────────────────────────────────── */
+#bg-canvas {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+}
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+/* ── Nav ───────────────────────────────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 18px 40px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(6,10,18,0.7);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 800; font-size: 18px; letter-spacing: -0.5px;
+}
+.nav-logo-mark {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 16px; color: #fff;
+}
+.nav-links { display: flex; gap: 32px; align-items: center; }
+.nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; transition: color .2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-cta {
+  background: var(--accent); color: #000; font-weight: 700;
+  padding: 8px 20px; border-radius: 8px; font-size: 14px;
+  transition: opacity .2s;
+}
+.nav-cta:hover { opacity: .85; }
+
+/* ── Hero ──────────────────────────────────────────────────────────────────── */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center;
+  padding: 120px 24px 80px;
+  position: relative; z-index: 1;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.2);
+  border-radius: 100px; padding: 6px 16px;
+  font-size: 13px; font-weight: 500; color: var(--accent);
+  margin-bottom: 32px;
+}
+.hero-badge-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .6; transform: scale(1.4); }
+}
+.hero h1 {
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 900;
+  letter-spacing: -2px;
+  line-height: 1.08;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, #fff 40%, rgba(255,255,255,0.5));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero h1 span {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-sub {
+  font-size: clamp(16px, 2vw, 20px); color: var(--muted);
+  max-width: 600px; margin: 0 auto 48px;
+  font-weight: 400; line-height: 1.7;
+}
+.hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.btn-primary {
+  background: var(--accent); color: #000; font-weight: 700;
+  padding: 14px 32px; border-radius: 10px; font-size: 15px;
+  display: flex; align-items: center; gap: 8px;
+  transition: transform .2s, box-shadow .2s;
+  box-shadow: 0 0 30px rgba(0,212,255,0.3);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 50px rgba(0,212,255,0.4); }
+.btn-secondary {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: var(--text); font-weight: 600;
+  padding: 14px 32px; border-radius: 10px; font-size: 15px;
+  display: flex; align-items: center; gap: 8px;
+  transition: background .2s, border-color .2s;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); }
+
+/* ── Stats bar ─────────────────────────────────────────────────────────────── */
+.stats-bar {
+  display: flex; justify-content: center; gap: 64px;
+  margin-top: 80px; flex-wrap: wrap; position: relative; z-index: 1;
+}
+.stat { text-align: center; }
+.stat-val {
+  font-size: 36px; font-weight: 900; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.stat-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* ── Section ───────────────────────────────────────────────────────────────── */
+section { padding: 100px 0; position: relative; z-index: 1; }
+.section-label {
+  font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  color: var(--accent); text-transform: uppercase; margin-bottom: 16px;
+}
+.section-title {
+  font-size: clamp(28px, 4vw, 44px); font-weight: 900;
+  letter-spacing: -1.5px; line-height: 1.15; margin-bottom: 16px;
+}
+.section-sub { font-size: 17px; color: var(--muted); max-width: 560px; line-height: 1.7; }
+
+/* ── How it works ──────────────────────────────────────────────────────────── */
+.layers { display: flex; flex-direction: column; gap: 2px; margin-top: 64px; }
+.layer {
+  display: grid; grid-template-columns: 56px 1fr; gap: 24px; align-items: start;
+  padding: 32px; border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  transition: border-color .3s, background .3s;
+  position: relative; overflow: hidden;
+}
+.layer::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(0,212,255,0.03) 0%, transparent 60%);
+  pointer-events: none;
+}
+.layer:hover { border-color: rgba(0,212,255,0.2); background: #111d2e; }
+.layer-num {
+  width: 56px; height: 56px; border-radius: 14px;
+  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 900; color: var(--accent); flex-shrink: 0;
+}
+.layer-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.layer-desc { font-size: 15px; color: var(--muted); line-height: 1.65; }
+.layer-code {
+  margin-top: 16px; padding: 16px;
+  background: rgba(0,0,0,0.4); border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.05);
+  font-family: var(--mono); font-size: 12px; color: #7dd3fc;
+  line-height: 1.8;
+}
+
+/* ── Engines ───────────────────────────────────────────────────────────────── */
+.engines-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 64px; }
+@media (max-width: 720px) { .engines-grid { grid-template-columns: 1fr; } }
+.engine-card {
+  padding: 36px; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--bg-card); position: relative; overflow: hidden;
+}
+.engine-card::after {
+  content: ''; position: absolute; top: -60px; right: -60px;
+  width: 200px; height: 200px; border-radius: 50%;
+  pointer-events: none; opacity: .08;
+}
+.engine-card.monitor::after { background: var(--accent); }
+.engine-card.sales::after   { background: var(--accent2); }
+.engine-icon {
+  font-size: 32px; margin-bottom: 20px;
+  width: 60px; height: 60px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.engine-card.monitor .engine-icon { background: rgba(0,212,255,0.1); }
+.engine-card.sales   .engine-icon { background: rgba(124,58,237,0.1); }
+.engine-title { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
+.engine-sub { font-size: 14px; color: var(--muted); line-height: 1.65; margin-bottom: 24px; }
+.engine-steps { display: flex; flex-direction: column; gap: 10px; }
+.engine-step {
+  display: flex; align-items: flex-start; gap: 12px;
+  font-size: 13px; color: var(--muted);
+}
+.engine-step-dot {
+  width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex-shrink: 0;
+}
+.monitor .engine-step-dot { background: var(--accent); }
+.sales   .engine-step-dot { background: var(--accent2); }
+.engine-step strong { color: var(--text); }
+
+/* ── Alert card mockup ─────────────────────────────────────────────────────── */
+.alert-demo {
+  margin-top: 64px;
+  background: var(--bg-card); border: 1px solid rgba(0,230,118,0.2);
+  border-radius: 20px; overflow: hidden;
+}
+.alert-demo-header {
+  padding: 16px 24px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,230,118,0.04);
+}
+.alert-demo-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 12px var(--green); animation: pulse-dot 2s infinite;
+}
+.alert-demo-label { font-size: 12px; font-weight: 700; color: var(--green); letter-spacing: 1px; }
+.alert-demo-ts { font-size: 12px; color: var(--dimmer); margin-left: auto; font-family: var(--mono); }
+.alert-demo-body { padding: 24px; display: grid; grid-template-columns: 1fr auto; gap: 24px; }
+@media (max-width: 600px) { .alert-demo-body { grid-template-columns: 1fr; } }
+.alert-demo-company { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+.alert-demo-thesis {
+  display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px;
+  font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  background: rgba(0,230,118,0.1); color: var(--green); margin-bottom: 14px;
+}
+.alert-demo-text { font-size: 14px; color: var(--muted); line-height: 1.7; }
+.alert-demo-text strong { color: var(--text); }
+.alert-demo-signals { display: flex; flex-direction: column; gap: 8px; min-width: 180px; }
+.signal-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 8px; font-size: 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+}
+.signal-pill-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.alert-demo-footer {
+  padding: 14px 24px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.direction-badge {
+  padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700;
+  letter-spacing: .5px;
+}
+.direction-watch { background: rgba(255,214,0,0.1); color: var(--yellow); }
+.conf-bar-wrap { display: flex; align-items: center; gap: 10px; }
+.conf-bar-track { width: 100px; height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; }
+.conf-bar-fill  { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--green)); }
+.conf-label { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+/* ── BD Products ───────────────────────────────────────────────────────────── */
+.bd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 64px; }
+.bd-card {
+  padding: 24px; border-radius: 14px; border: 1px solid var(--border);
+  background: var(--bg-card);
+  transition: border-color .3s, transform .2s;
+}
+.bd-card:hover { border-color: rgba(0,212,255,0.25); transform: translateY(-2px); }
+.bd-card-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; margin-bottom: 14px;
+}
+.bd-card-name { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.bd-card-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.bd-card-why  { font-size: 11px; color: var(--accent); margin-top: 10px; font-weight: 500; }
+
+/* ── Flow diagram ──────────────────────────────────────────────────────────── */
+.flow { margin-top: 64px; }
+.flow-row {
+  display: flex; align-items: stretch; gap: 0;
+  margin-bottom: 2px;
+}
+.flow-node {
+  flex: 1; padding: 20px 16px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--bg-card);
+  text-align: center; font-size: 13px; font-weight: 600;
+  position: relative;
+}
+.flow-node.accent   { border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.06); color: var(--accent); }
+.flow-node.purple   { border-color: rgba(124,58,237,0.3); background: rgba(124,58,237,0.06); color: #c4b5fd; }
+.flow-node.green    { border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.06); color: var(--green); }
+.flow-node.orange   { border-color: rgba(255,152,0,0.3); background: rgba(255,152,0,0.06); color: var(--orange); }
+.flow-arrow {
+  width: 40px; display: flex; align-items: center; justify-content: center;
+  color: var(--dimmer); font-size: 18px; flex-shrink: 0;
+}
+.flow-down {
+  display: flex; justify-content: center; margin: 4px 0;
+  color: var(--dimmer); font-size: 18px;
+}
+.flow-label { font-size: 10px; color: var(--dimmer); margin-top: 4px; font-family: var(--mono); }
+
+/* ── Cross-signal ──────────────────────────────────────────────────────────── */
+.cross-card {
+  margin-top: 64px; padding: 40px; border-radius: 20px;
+  background: linear-gradient(135deg, rgba(0,212,255,0.06), rgba(124,58,237,0.06));
+  border: 1px solid rgba(0,212,255,0.15);
+  display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;
+}
+@media (max-width: 720px) { .cross-card { grid-template-columns: 1fr; } }
+.cross-title { font-size: 22px; font-weight: 800; margin-bottom: 12px; }
+.cross-desc { font-size: 15px; color: var(--muted); line-height: 1.7; }
+.cross-steps { display: flex; flex-direction: column; gap: 12px; }
+.cross-step { display: flex; align-items: flex-start; gap: 14px; }
+.cross-step-num {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--accent);
+}
+.cross-step-text { font-size: 14px; color: var(--muted); line-height: 1.6; }
+.cross-step-text strong { color: var(--text); }
+
+/* ── CTA ───────────────────────────────────────────────────────────────────── */
+.cta-section {
+  text-align: center; padding: 120px 24px;
+  position: relative; z-index: 1;
+}
+.cta-glow {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 600px; height: 300px; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0,212,255,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.cta-title {
+  font-size: clamp(32px, 5vw, 56px); font-weight: 900; letter-spacing: -1.5px;
+  margin-bottom: 20px; position: relative;
+}
+.cta-sub { font-size: 18px; color: var(--muted); margin-bottom: 48px; position: relative; }
+.cta-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; position: relative; }
+
+/* ── Footer ────────────────────────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 40px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+  position: relative; z-index: 1;
+}
+.footer-logo { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.footer-mark {
+  width: 24px; height: 24px; border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: #fff; font-weight: 900;
+}
+.footer-links { display: flex; gap: 24px; }
+.footer-links a { font-size: 13px; color: var(--muted); transition: color .2s; }
+.footer-links a:hover { color: var(--text); }
+.footer-copy { font-size: 12px; color: var(--dimmer); }
+
+/* ── Divider ───────────────────────────────────────────────────────────────── */
+.divider {
+  border: none; border-top: 1px solid var(--border); margin: 0;
+}
+
+/* ── Scroll reveal ─────────────────────────────────────────────────────────── */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
+.reveal.visible { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<!-- ── NAV ──────────────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-mark">α</div>
+    AlphaSignal
+  </div>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#engines">Engines</a>
+    <a href="#data">Data sources</a>
+    <a href="https://github.com/RagavRida/alphasignal" target="_blank">GitHub</a>
+  </div>
+  <a href="/app" class="nav-cta">Open Dashboard →</a>
+</nav>
+
+<!-- ── HERO ─────────────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-badge">
+    <span class="hero-badge-dot"></span>
+    Live on Render · Bright Data Hackathon 2026
+  </div>
+  <h1>Market intelligence<br/>that <span>acts before you do</span></h1>
+  <p class="hero-sub">AlphaSignal watches 7 live data streams across your watchlist, correlates signals into investment theses, and generates personalized sales outreach — all without a human in the loop.</p>
+  <div class="hero-actions">
+    <a href="/app" class="btn-primary">⚡ Open Dashboard</a>
+    <a href="https://github.com/RagavRida/alphasignal" target="_blank" class="btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      View Source
+    </a>
+  </div>
+
+  <div class="stats-bar reveal">
+    <div class="stat">
+      <div class="stat-val">7</div>
+      <div class="stat-label">Parallel signal detectors</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val">5</div>
+      <div class="stat-label">Bright Data products</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val">5</div>
+      <div class="stat-label">Cross-signal thesis rules</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val">4-step</div>
+      <div class="stat-label">AI-generated outreach</div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ── HOW IT WORKS ──────────────────────────────────────────────────────────── -->
+<section id="how">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">How it works</div>
+      <h2 class="section-title">Three layers between raw web data and a sales action</h2>
+      <p class="section-sub">Most tools call an API and display the result. AlphaSignal correlates signals across sources before any AI is involved — so the model writes from evidence, not guesses.</p>
+    </div>
+
+    <div class="layers reveal">
+      <div class="layer">
+        <div class="layer-num">1</div>
+        <div>
+          <div class="layer-title">Signal Detection — 7 parallel detectors</div>
+          <div class="layer-desc">Every hour, seven independent detectors probe each watched company using the right Bright Data product for that target. LinkedIn Jobs needs a browser that executes JavaScript. G2 and SEC EDGAR need CAPTCHA bypass. Pricing pages need diff-capable scraping. Each detector returns a normalized signal object with value, delta, confidence, and evidence URL.</div>
+          <div class="layer-code">
+            <span style="color:#94a3b8">// normalized signal output</span><br/>
+            { type: "hiring_velocity", delta: +180, confidence: 0.91, evidence: "linkedin.com/jobs/..." }<br/>
+            { type: "funding_detected", value: 80e6, stage: "Series D", confidence: 0.97 }<br/>
+            { type: "pricing_change",  delta: -15, tier: "enterprise", confidence: 0.88 }
+          </div>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-num">2</div>
+        <div>
+          <div class="layer-title">Signal Correlation — 5 cross-signal thesis rules</div>
+          <div class="layer-desc">Raw signals are meaningless alone. A company posting 20 jobs could be growing or backfilling after layoffs. The correlator tests five thesis patterns that require multiple signals to agree before anything fires. A company hiring fast AND just funded AND getting positive press is a real growth signal. Any one of those alone is noise.</div>
+          <div class="layer-code">
+            growth_thesis      = funding_detected <span style="color:#f472b6">AND</span> hiring_velocity &gt; +50% <span style="color:#f472b6">AND</span> news_positive<br/>
+            competitive_threat = competitor_pricing_dropped <span style="color:#f472b6">AND</span> their_hiring_accelerated<br/>
+            financial_distress = sec_filing_negative <span style="color:#f472b6">AND</span> hiring_freeze <span style="color:#f472b6">AND</span> traffic_declining<br/>
+            supplier_risk      = supply_disruption <span style="color:#f472b6">AND</span> pricing_change_imminent<br/>
+            market_disruption  = news_score &lt; -0.6 <span style="color:#f472b6">AND</span> traffic_delta &lt; -30%
+          </div>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-num">3</div>
+        <div>
+          <div class="layer-title">Alert Generation — AI/ML API writes from evidence</div>
+          <div class="layer-desc">Only thesis-matched signals reach the AI/ML API. The prompt includes which thesis fired, all supporting signal values, historical context, and specific evidence URLs. The model doesn't decide what's significant — the correlator already did. It writes the investment narrative: what happened, why it matters, what move to make, what to watch next. No thesis match = no alert — which is why alerts don't hallucinate.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ── LIVE ALERT MOCKUP ──────────────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Sample output</div>
+      <h2 class="section-title">What an actual alert looks like</h2>
+    </div>
+    <div class="alert-demo reveal">
+      <div class="alert-demo-header">
+        <div class="alert-demo-dot"></div>
+        <div class="alert-demo-label">GROWTH THESIS · CONFIRMED</div>
+        <div class="alert-demo-ts">2026-05-30 · 04:17 UTC</div>
+      </div>
+      <div class="alert-demo-body">
+        <div>
+          <div class="alert-demo-company">Coda</div>
+          <div class="alert-demo-thesis">growth_thesis</div>
+          <div class="alert-demo-text">
+            Coda hired <strong>23 engineers in 30 days (+180% velocity)</strong>. TechCrunch confirmed an <strong>$80M Series D</strong> led by Sequoia. G2 shows <strong>12 new reviews</strong> in 14 days mentioning "switching from Notion" as a primary reason. Pricing page unchanged — expansion is talent-led, not price-competitive — yet.
+            <br/><br/>
+            <strong>Recommended action:</strong> Reach Notion's adjacent ICP now, before Coda runs a pricing play. Signal to confirm: enterprise tier pricing change within 60 days.
+          </div>
+        </div>
+        <div class="alert-demo-signals">
+          <div class="signal-pill"><div class="signal-pill-dot" style="background:#00e676"></div>Hiring +180%</div>
+          <div class="signal-pill"><div class="signal-pill-dot" style="background:#00d4ff"></div>$80M Series D</div>
+          <div class="signal-pill"><div class="signal-pill-dot" style="background:#ff9800"></div>12 G2 reviews</div>
+          <div class="signal-pill"><div class="signal-pill-dot" style="background:#b388ff"></div>News sentiment +0.82</div>
+          <div class="signal-pill"><div class="signal-pill-dot" style="background:#ffd600"></div>Traffic +34%</div>
+        </div>
+      </div>
+      <div class="alert-demo-footer">
+        <span class="direction-badge direction-watch">WATCH</span>
+        <div class="conf-bar-wrap">
+          <div class="conf-bar-track"><div class="conf-bar-fill" style="width:87%"></div></div>
+          <span class="conf-label">87% confidence</span>
+        </div>
+        <span style="font-size:12px;color:var(--dimmer);margin-left:auto">3 signals · 2 sources · growth_thesis match</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ── ENGINES ───────────────────────────────────────────────────────────────── -->
+<section id="engines">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Two engines, one platform</div>
+      <h2 class="section-title">Market intelligence + Sales pipeline</h2>
+      <p class="section-sub">Both run on the same Bright Data infrastructure. The market monitor feeds the sales engine automatically through the cross-signal layer.</p>
+    </div>
+    <div class="engines-grid">
+      <div class="engine-card monitor reveal">
+        <div class="engine-icon">📈</div>
+        <div class="engine-title">Market Intelligence Monitor</div>
+        <div class="engine-sub">Watches your configured company list continuously. Fires structured investment alerts when signal patterns match a known thesis.</div>
+        <div class="engine-steps">
+          <div class="engine-step monitor"><div class="engine-step-dot"></div><div><strong>7 detectors</strong> run in parallel every hour</div></div>
+          <div class="engine-step monitor"><div class="engine-step-dot"></div><div>Signals normalized to <strong>confidence + delta + evidence</strong></div></div>
+          <div class="engine-step monitor"><div class="engine-step-dot"></div><div>5 thesis rules tested across signal sets</div></div>
+          <div class="engine-step monitor"><div class="engine-step-dot"></div><div>AI/ML API writes memo: <strong>direction + action + follow-up</strong></div></div>
+          <div class="engine-step monitor"><div class="engine-step-dot"></div><div>Live SSE stream → dashboard feed</div></div>
+        </div>
+      </div>
+      <div class="engine-card sales reveal">
+        <div class="engine-icon">🎯</div>
+        <div class="engine-title">B2B Sales Pipeline</div>
+        <div class="engine-sub">Type a plain-English ICP. AlphaSignal finds matching companies, monitors their buying intent, and writes personalized outreach for each one.</div>
+        <div class="engine-steps">
+          <div class="engine-step sales"><div class="engine-step-dot"></div><div>AI/ML API converts ICP text → <strong>8 targeted Google queries</strong></div></div>
+          <div class="engine-step sales"><div class="engine-step-dot"></div><div>SERP results de-duped, each company <strong>scored 0–100</strong> vs ICP</div></div>
+          <div class="engine-step sales"><div class="engine-step-dot"></div><div>G2 · Reddit · HN · Glassdoor scraped for <strong>intent signals</strong></div></div>
+          <div class="engine-step sales"><div class="engine-step-dot"></div><div>Blog, jobs, press scraped for <strong>email personalization context</strong></div></div>
+          <div class="engine-step sales"><div class="engine-step-dot"></div><div><strong>4-step email sequence + LinkedIn DM</strong> per lead</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cross-signal -->
+    <div class="cross-card reveal">
+      <div>
+        <div class="section-label">Cross-Signal Engine</div>
+        <div class="cross-title">Funding alert → outreach, automatically</div>
+        <div class="cross-desc">When Engine 1 detects a funding event, Engine 2 doesn't wait for a human to notice. A company that just raised is in buying mode. Similar-stage companies are statistically likely to be in the same cycle.</div>
+      </div>
+      <div class="cross-steps">
+        <div class="cross-step">
+          <div class="cross-step-num">1</div>
+          <div class="cross-step-text"><strong>Funding alert fires</strong> — $80M Series D, growth thesis confirmed</div>
+        </div>
+        <div class="cross-step">
+          <div class="cross-step-num">2</div>
+          <div class="cross-step-text"><strong>10 similar companies</strong> found (same stage, sector, hiring pattern)</div>
+        </div>
+        <div class="cross-step">
+          <div class="cross-step-num">3</div>
+          <div class="cross-step-text"><strong>Intent monitoring</strong> runs on all 10 automatically</div>
+        </div>
+        <div class="cross-step">
+          <div class="cross-step-num">4</div>
+          <div class="cross-step-text"><strong>Email sequences generated</strong> for anyone showing buying signals</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ── BRIGHT DATA ────────────────────────────────────────────────────────────── -->
+<section id="data">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Data infrastructure</div>
+      <h2 class="section-title">Five Bright Data products, each chosen for a reason</h2>
+      <p class="section-sub">This isn't "use whichever API is cheapest." Every product is deployed because the alternative fails on that specific target site.</p>
+    </div>
+    <div class="bd-grid">
+      <div class="bd-card reveal">
+        <div class="bd-card-icon">🔌</div>
+        <div class="bd-card-name">MCP Server</div>
+        <div class="bd-card-desc">Company blogs, LinkedIn profiles, Crunchbase. The <code style="font-size:11px;color:var(--accent)">scrape_as_markdown</code> tool returns clean structured text — directly usable as model context.</div>
+        <div class="bd-card-why">→ Used in: brand analysis, context fetching</div>
+      </div>
+      <div class="bd-card reveal">
+        <div class="bd-card-icon">🔍</div>
+        <div class="bd-card-name">SERP API</div>
+        <div class="bd-card-desc">Lead discovery runs 8 Google queries per pipeline execution. Raw scraping at this frequency gets rate-limited in minutes. SERP API provides stable, structured results at scale.</div>
+        <div class="bd-card-why">→ Used in: lead discovery, funding, news, intent</div>
+      </div>
+      <div class="bd-card reveal">
+        <div class="bd-card-icon">🕷️</div>
+        <div class="bd-card-name">Web Scraper API</div>
+        <div class="bd-card-desc">Pricing pages. The scraper caches a baseline and diffs it against fresh scrapes — that's how PricingChangeDetector works. A 10% enterprise price drop is a high-confidence signal.</div>
+        <div class="bd-card-why">→ Used in: pricing change detector, traffic</div>
+      </div>
+      <div class="bd-card reveal">
+        <div class="bd-card-icon">🌐</div>
+        <div class="bd-card-name">Scraping Browser</div>
+        <div class="bd-card-desc">LinkedIn job listings are JS-rendered. A static scraper returns empty divs. The Scraping Browser executes the JavaScript and returns the populated DOM with real hiring counts.</div>
+        <div class="bd-card-why">→ Used in: hiring velocity detector</div>
+      </div>
+      <div class="bd-card reveal">
+        <div class="bd-card-icon">🔓</div>
+        <div class="bd-card-name">Web Unlocker</div>
+        <div class="bd-card-desc">G2 (CAPTCHA + bot detection), Glassdoor (geo-gated), SEC EDGAR (blocks non-US IPs). Three different protection models — Web Unlocker handles all three.</div>
+        <div class="bd-card-why">→ Used in: intent signals, SEC filings</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ── CTA ───────────────────────────────────────────────────────────────────── -->
+<div class="cta-section">
+  <div class="cta-glow"></div>
+  <h2 class="cta-title">See it live</h2>
+  <p class="cta-sub">Open the dashboard. Switch to Demo Mode to load pre-built results instantly, or enter your own brand and ICP to run a live pipeline.</p>
+  <div class="cta-actions">
+    <a href="/app" class="btn-primary">⚡ Open Dashboard</a>
+    <a href="https://github.com/RagavRida/alphasignal" target="_blank" class="btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+</div>
+
+<!-- ── FOOTER ────────────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-logo">
+    <div class="footer-mark">α</div>
+    AlphaSignal
+  </div>
+  <div class="footer-links">
+    <a href="/app">Dashboard</a>
+    <a href="https://github.com/RagavRida/alphasignal" target="_blank">GitHub</a>
+    <a href="https://brightdata.com" target="_blank">Bright Data</a>
+    <a href="https://aimlapi.com" target="_blank">AI/ML API</a>
+  </div>
+  <div class="footer-copy">Built for Bright Data Hackathon 2026</div>
+</footer>
+
+<script>
+// ── Animated canvas background ──────────────────────────────────────────────
+const canvas = document.getElementById('bg-canvas');
+const ctx    = canvas.getContext('2d');
+let W, H, particles = [];
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+function randomParticle() {
+  return {
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: Math.random() * 1.4 + 0.3,
+    vx: (Math.random() - .5) * .25,
+    vy: (Math.random() - .5) * .25,
+    alpha: Math.random() * .4 + .05,
+    pulse: Math.random() * Math.PI * 2,
+  };
+}
+
+for (let i = 0; i < 90; i++) particles.push(randomParticle());
+
+// Gradient orbs
+const orbs = [
+  { x: .2, y: .3, r: 320, color: 'rgba(0,212,255,0.045)' },
+  { x: .8, y: .6, r: 280, color: 'rgba(124,58,237,0.04)' },
+  { x: .5, y: .1, r: 200, color: 'rgba(0,230,118,0.025)' },
+];
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Orbs
+  orbs.forEach(o => {
+    const g = ctx.createRadialGradient(o.x*W, o.y*H, 0, o.x*W, o.y*H, o.r);
+    g.addColorStop(0, o.color);
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(o.x*W, o.y*H, o.r, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Particles
+  const tick = Date.now() * .001;
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+    if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+    p.pulse += .008;
+    const a = p.alpha * (.7 + .3 * Math.sin(p.pulse));
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(0,212,255,${a})`;
+    ctx.fill();
+  });
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.018)';
+  ctx.lineWidth   = 1;
+  const gs = 80;
+  for (let x = 0; x < W; x += gs) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += gs) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  requestAnimationFrame(draw);
+}
+draw();
+
+// ── Scroll reveal ────────────────────────────────────────────────────────────
+const observer = new IntersectionObserver(
+  entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
+  { threshold: 0.12 }
+);
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

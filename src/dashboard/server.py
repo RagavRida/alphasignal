@@ -160,6 +160,11 @@ async def sse_sales():
 # ── REST — Hedge Fund Monitor ─────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
+async def landing():
+    return HTMLResponse(content=(STATIC_DIR / "landing.html").read_text())
+
+
+@app.get("/app", response_class=HTMLResponse)
 async def dashboard():
     return HTMLResponse(content=(STATIC_DIR / "index.html").read_text())
 
