@@ -351,6 +351,7 @@ function renderLeads() {
         <div class="company-cell">
           <span class="company-name">${esc(lead.company_name || '–')}</span>
           <span class="company-domain">${esc(lead.domain || '')}</span>
+          ${sourceBadge(lead.source)}
         </div>
       </td>
       <td>${lead.funding_amount ? `<span class="tag tag-stage">${esc(lead.funding_amount)}</span>` : '–'}</td>
@@ -372,6 +373,77 @@ function scoreTag(score) {
 function signalTags(signals) {
   if (!signals || !signals.length) return '–';
   return signals.slice(0, 2).map(s => `<span class="tag tag-signal">${esc(s)}</span>`).join(' ');
+}
+
+function _renderTechStack(lead) {
+  let el = document.getElementById('drawer-tech-stack');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'drawer-tech-stack';
+    el.style.cssText = 'padding:10px 24px;border-bottom:1px solid #1e2d42;';
+    const meta = document.getElementById('drawer-contact-meta');
+    if (meta) meta.parentNode.insertBefore(el, meta.nextSibling);
+  }
+  const stack = lead.tech_stack || {};
+  const cats  = Object.entries(stack).filter(([k]) => k !== 'raw_stack');
+  if (!cats.length) { el.innerHTML = ''; return; }
+
+  const colors = { crm:'#f472b6', analytics:'#60a5fa', payments:'#4ade80',
+                   marketing:'#fb923c', framework:'#a78bfa', hosting:'#fbbf24',
+                   support:'#34d399', productivity:'#94a3b8' };
+  el.innerHTML = `
+    <div style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">⚙ Tech Stack</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${cats.map(([cat, tools]) => tools.map(t => {
+        const c = colors[cat] || '#94a3b8';
+        return `<span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${c}18;color:${c};border:1px solid ${c}30">${esc(t)}</span>`;
+      }).join('')).join('')}
+    </div>`;
+}
+
+function _renderFollowupTimeline(lead) {
+  let el = document.getElementById('drawer-followup');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'drawer-followup';
+    el.style.cssText = 'padding:10px 24px;border-bottom:1px solid #1e2d42;';
+    const techEl = document.getElementById('drawer-tech-stack');
+    if (techEl) techEl.parentNode.insertBefore(el, techEl.nextSibling);
+  }
+  const status = lead.status || 'new';
+  const steps  = [
+    { n:1, label:'Step 1', delay:'sent',   done: ['emailed','replied'].includes(status) },
+    { n:2, label:'Step 2', delay:'+3 days', done: false },
+    { n:3, label:'Step 3', delay:'+7 days', done: false },
+    { n:4, label:'Step 4', delay:'+14 days', done: false },
+  ];
+  el.innerHTML = `
+    <div style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">↻ Auto Follow-up Sequence</div>
+    <div style="display:flex;gap:0;align-items:center;">
+      ${steps.map((s, i) => `
+        <div style="display:flex;align-items:center;gap:0;">
+          <div style="text-align:center;">
+            <div style="width:28px;height:28px;border-radius:50%;border:2px solid ${s.done?'#00e676':'#1e2d42'};background:${s.done?'#00e67620':'#0d1220'};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${s.done?'#00e676':'#4a5568'};margin:0 auto">${s.done?'✓':s.n}</div>
+            <div style="font-size:9px;color:${s.done?'#00e676':'#4a5568'};margin-top:3px">${s.label}</div>
+            <div style="font-size:8px;color:#334155">${s.delay}</div>
+          </div>
+          ${i < steps.length-1 ? `<div style="width:24px;height:2px;background:${s.done?'#00e67640':'#1e2d42'};margin-bottom:18px"></div>` : ''}
+        </div>`).join('')}
+    </div>`;
+}
+
+function sourceBadge(source) {
+  if (!source) return '';
+  const map = {
+    'GitHub':        { color: '#7dd3fc', icon: '⌥' },
+    'Product Hunt':  { color: '#fb923c', icon: '▲' },
+    'Crunchbase':    { color: '#a78bfa', icon: '◆' },
+    'SERP':          { color: '#6ee7b7', icon: '⊕' },
+  };
+  const found = Object.keys(map).find(k => source.includes(k));
+  if (!found) return '';
+  const { color, icon } = map[found];
+  return `<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:${color}18;color:${color};border:1px solid ${color}30;font-weight:600;margin-top:2px;display:inline-block">${icon} ${found}</span>`;
 }
 
 function statusBadge(status) {
@@ -510,6 +582,12 @@ async function openDrawer(leadId) {
       — <a href="https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent((contact.name || '') + ' ' + (lead.company_name || ''))}" target="_blank" style="color:#60a5fa;">Search LinkedIn ↗</a>
     </div>` : ''}
   `;
+
+  // ── Tech stack enrichment ──────────────────────────────────────────────
+  _renderTechStack(lead);
+
+  // ── Follow-up timeline ─────────────────────────────────────────────────
+  _renderFollowupTimeline(lead);
 
   _onManualEmailInput(email);
 
