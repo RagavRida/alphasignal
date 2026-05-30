@@ -427,6 +427,30 @@ Respond ONLY with valid JSON, no markdown:
         }
 
     def _build_finding(self, company: str, params: dict, context: dict) -> dict:
+        # Convert agent observations into proper signal objects
+        tool_to_signal = {
+            "get_job_postings":   "hiring_velocity",
+            "get_funding_data":   "funding",
+            "get_g2_reviews":     "news",
+            "get_traffic_data":   "web_traffic",
+            "get_pricing_page":   "pricing_change",
+            "search_news":        "news",
+            "get_sec_filing":     "financial_health",
+            "scrape_website":     "news",
+            "enrich_tech_stack":  "web_traffic",
+        }
+        signals = []
+        for o in context["observations"]:
+            tool = o.get("tool", "")
+            sig_type = tool_to_signal.get(tool, "")
+            if sig_type and sig_type not in [s.get("signal_type") for s in signals]:
+                signals.append({
+                    "signal_type":  sig_type,
+                    "variance_pct": "",
+                    "alert":        True,
+                    "source":       next((t["product"] for t in TOOLS if t["name"] == tool), "Agent"),
+                })
+
         return {
             "alert_id":        f"agent-{company}-{_ts_id()}",
             "company":         company,
@@ -434,7 +458,7 @@ Respond ONLY with valid JSON, no markdown:
             "confidence_score": float(params.get("confidence", 70)),
             "recommendation":  {"direction": params.get("direction", "WATCH")},
             "narrative":       params.get("evidence_summary", "Agent-recorded finding"),
-            "signals":         [o["tool"] for o in context["observations"]],
+            "signals":         signals,
             "source":          "AlphaSignal Agent (ReAct loop)",
             "timestamp":       datetime.utcnow().isoformat() + "Z",
         }

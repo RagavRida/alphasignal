@@ -87,7 +87,24 @@ function _signalLabel(s) {
 function renderAlertCard(alert) {
   const type = alert.alert_type || alert.correlation_type || 'growth_thesis';
   const conf = alert.confidence_score || 0;
-  const signals = alert.signals || [];
+  let signals = alert.signals || [];
+  // Fix agent-generated alerts: signals may be plain strings instead of objects
+  signals = signals.map(s => {
+    if (typeof s === 'string') {
+      // Convert tool names like "get_job_postings" to signal objects
+      const toolMap = {
+        get_job_postings: 'hiring_velocity',
+        get_funding_data: 'funding',
+        get_g2_reviews: 'news',
+        get_traffic_data: 'web_traffic',
+        get_pricing_page: 'pricing_change',
+        search_news: 'news',
+        get_sec_filing: 'financial_health',
+      };
+      return { signal_type: toolMap[s] || s.replace(/^get_/, '').replace(/_/g, ' '), alert: true, variance_pct: '' };
+    }
+    return s;
+  });
   const rec = alert.recommendation || {};
   const direction = rec.direction || 'NEUTRAL';
   const badgeClass = {
