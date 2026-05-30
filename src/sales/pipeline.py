@@ -267,6 +267,29 @@ class SalesPipeline:
             border_style="green",
         ))
 
+        # ── Slack notification ─────────────────────────────────────────────
+        try:
+            from src.slack_alerts import send_sales_summary
+            brand_name = self.sequencer.product_name or "AlphaSignal"
+            lead_dicts = [
+                {"company_name": l.company_name, "score": l.score,
+                 "domain": l.domain, "funding_stage": l.funding_stage,
+                 "funding_amount": l.funding_amount, "geo": l.geo,
+                 "hiring_signals": l.hiring_signals}
+                for l in leads
+            ]
+            sent = await send_sales_summary(
+                brand_name=brand_name,
+                icp_text=icp_text,
+                leads=lead_dicts,
+                total_emails=total_emails,
+                total_signals=len(all_signals),
+            )
+            if sent:
+                console.print("  [green]✓ Slack summary sent[/green]")
+        except Exception as e:
+            console.print(f"  [dim]Slack: {e}[/dim]")
+
         await self.bd.close()
         return summary
 

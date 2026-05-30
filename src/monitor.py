@@ -253,6 +253,15 @@ class AutonomousMonitor:
         # 4. Push to WebSocket subscribers (dashboard)
         await _broadcast_alert(alert)
 
+        # 5. Push to Slack (if configured)
+        try:
+            from src.slack_alerts import send_market_alert
+            sent = await send_market_alert(alert)
+            if sent:
+                console.print(f"  [green]✓ Slack alert sent[/green]")
+        except Exception as e:
+            console.print(f"  [dim]Slack: {e}[/dim]")
+
         console.print(f"  [green]✓ Alert saved: {alert['alert_id']}[/green]")
 
     def _print_signal_table(self, company: str, signals: list[dict]):
