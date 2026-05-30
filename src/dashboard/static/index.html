@@ -148,12 +148,15 @@
       <div class="panel panel-sm">
         <div class="panel-header"><h2 class="panel-title">Bright Data Products</h2></div>
         <div class="bd-products">
-          <div class="bd-product"><div class="bd-icon bd-mcp">M</div><div><div class="bd-name">MCP Server</div><div class="bd-desc">Central orchestration</div></div><div class="bd-status active">●</div></div>
-          <div class="bd-product"><div class="bd-icon bd-serp">S</div><div><div class="bd-name">SERP API</div><div class="bd-desc">Jobs · Funding · News</div></div><div class="bd-status active">●</div></div>
-          <div class="bd-product"><div class="bd-icon bd-scraper">W</div><div><div class="bd-name">Web Scraper API</div><div class="bd-desc">LinkedIn · E-commerce</div></div><div class="bd-status active">●</div></div>
-          <div class="bd-product"><div class="bd-icon bd-browser">B</div><div><div class="bd-name">Scraping Browser</div><div class="bd-desc">Dynamic pricing · Traffic</div></div><div class="bd-status active">●</div></div>
-          <div class="bd-product"><div class="bd-icon bd-unlocker">U</div><div><div class="bd-name">Web Unlocker</div><div class="bd-desc">SEC EDGAR · Credit data</div></div><div class="bd-status active">●</div></div>
+          <div class="bd-product" id="bdp-datasets"><div class="bd-icon bd-mcp" style="background:rgba(251,191,36,0.15);color:#fbbf24">D</div><div><div class="bd-name">Datasets API</div><div class="bd-desc">LinkedIn · Crunchbase · G2</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><div class="bd-status active">●</div><span id="bd-count-datasets" style="font-size:9px;color:#fbbf24;font-family:monospace">0</span></div></div>
+          <div class="bd-product" id="bdp-mcp"><div class="bd-icon bd-mcp">M</div><div><div class="bd-name">MCP Server</div><div class="bd-desc">Scrape · Extract</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><div class="bd-status active">●</div><span id="bd-count-mcp" style="font-size:9px;color:#00d4ff;font-family:monospace">0</span></div></div>
+          <div class="bd-product" id="bdp-serp"><div class="bd-icon bd-serp">S</div><div><div class="bd-name">SERP API</div><div class="bd-desc">Jobs · Funding · News</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><div class="bd-status active">●</div><span id="bd-count-serp" style="font-size:9px;color:#00d4ff;font-family:monospace">0</span></div></div>
+          <div class="bd-product" id="bdp-scraper"><div class="bd-icon bd-scraper">W</div><div><div class="bd-name">Web Scraper API</div><div class="bd-desc">Pricing · Traffic</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><div class="bd-status active">●</div><span id="bd-count-scraper" style="font-size:9px;color:#00d4ff;font-family:monospace">0</span></div></div>
+          <div class="bd-product" id="bdp-browser"><div class="bd-icon bd-browser">B</div><div><div class="bd-name">Scraping Browser</div><div class="bd-desc">JS-rendered pages</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><div class="bd-status active">●</div><span id="bd-count-browser" style="font-size:9px;color:#00d4ff;font-family:monospace">0</span></div></div>
+          <div class="bd-product" id="bdp-unlocker"><div class="bd-icon bd-unlocker">U</div><div><div class="bd-name">Web Unlocker</div><div class="bd-desc">G2 · SEC · Glassdoor</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><div class="bd-status active">●</div><span id="bd-count-unlocker" style="font-size:9px;color:#00d4ff;font-family:monospace">0</span></div></div>
+          <div class="bd-product" id="bdp-proxy"><div class="bd-icon" style="background:rgba(52,211,153,0.1);color:#34d399;font-weight:800">P</div><div><div class="bd-name">Datacenter Proxy</div><div class="bd-desc">BuiltWith · SimilarWeb</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><div class="bd-status active">●</div><span id="bd-count-proxy" style="font-size:9px;color:#34d399;font-family:monospace">0</span></div></div>
         </div>
+        <div id="bd-last-call" style="padding:8px 12px;font-size:9px;font-family:monospace;color:#4a5568;border-top:1px solid #1a2535;min-height:20px"></div>
       </div>
       <div class="panel panel-sm">
         <div class="panel-header"><h2 class="panel-title">Alert Distribution</h2></div>
@@ -234,6 +237,20 @@
     <div class="stat-card"><div class="stat-value" id="stat-avg-score">–</div><div class="stat-label">Avg ICP Score</div></div>
   </div>
 
+  <!-- Sources + Outreach status bar -->
+  <div style="padding:0 20px 10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <div style="font-size:10px;color:#4a5568;font-weight:700;text-transform:uppercase;letter-spacing:1px">Sources:</div>
+    <span id="src-serp"   style="display:none;padding:2px 10px;border-radius:20px;font-size:11px;background:#6ee7b718;color:#6ee7b7;border:1px solid #6ee7b730">⊕ SERP <b id="src-serp-n">0</b></span>
+    <span id="src-github" style="display:none;padding:2px 10px;border-radius:20px;font-size:11px;background:#7dd3fc18;color:#7dd3fc;border:1px solid #7dd3fc30">⌥ GitHub <b id="src-github-n">0</b></span>
+    <span id="src-ph"     style="display:none;padding:2px 10px;border-radius:20px;font-size:11px;background:#fb923c18;color:#fb923c;border:1px solid #fb923c30">▲ Product Hunt <b id="src-ph-n">0</b></span>
+    <span id="src-crunch" style="display:none;padding:2px 10px;border-radius:20px;font-size:11px;background:#a78bfa18;color:#a78bfa;border:1px solid #a78bfa30">◆ Crunchbase <b id="src-crunch-n">0</b></span>
+    <div style="flex:1"></div>
+    <div style="font-size:10px;color:#4a5568;font-weight:700;text-transform:uppercase;letter-spacing:1px">Outreach:</div>
+    <span style="padding:2px 10px;border-radius:20px;font-size:11px;background:#00e67618;color:#00e676;border:1px solid #00e67630">✉ Sent <b id="out-sent">0</b></span>
+    <span style="padding:2px 10px;border-radius:20px;font-size:11px;background:#fbbf2418;color:#fbbf24;border:1px solid #fbbf2430">⏰ Scheduled <b id="out-sched">0</b></span>
+    <span style="padding:2px 10px;border-radius:20px;font-size:11px;background:#4a556818;color:#8892a0;border:1px solid #4a556830">📄 Draft <b id="out-draft">0</b></span>
+  </div>
+
   <!-- Leads + Signals -->
   <div class="main-content" style="padding:0 20px 20px;display:grid;grid-template-columns:1fr 320px;gap:16px">
     <section class="leads-section">
@@ -257,9 +274,33 @@
         </table>
       </div>
     </section>
-    <section class="signals-section">
-      <div class="section-header"><h2 class="section-title">⚡ Intent Signals</h2></div>
-      <div class="signals-list" id="signals-list"><div class="empty-state-small">Run the pipeline to detect signals</div></div>
+    <section class="signals-section" style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div class="section-header"><h2 class="section-title">⚡ Intent Signals</h2></div>
+        <div class="signals-list" id="signals-list"><div class="empty-state-small">Run the pipeline to detect signals</div></div>
+      </div>
+
+      <!-- Outreach Activity Log -->
+      <div style="background:#0d1220;border:1px solid #1a2535;border-radius:12px;overflow:hidden">
+        <div style="padding:10px 14px;border-bottom:1px solid #1a2535;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;font-weight:700;color:#e8edf5">✉ Outreach Log</span>
+          <span style="font-size:10px;color:#4a5568">auto-sent via Resend</span>
+        </div>
+        <div id="outreach-log" style="max-height:220px;overflow-y:auto;padding:6px 0">
+          <div style="padding:16px;text-align:center;font-size:12px;color:#4a5568">No emails sent yet</div>
+        </div>
+      </div>
+
+      <!-- Follow-up Queue -->
+      <div style="background:#0d1220;border:1px solid #1a2535;border-radius:12px;overflow:hidden">
+        <div style="padding:10px 14px;border-bottom:1px solid #1a2535;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;font-weight:700;color:#e8edf5">⏰ Follow-up Queue</span>
+          <span style="font-size:10px;color:#4a5568">auto-scheduled</span>
+        </div>
+        <div id="followup-queue" style="max-height:180px;overflow-y:auto;padding:6px 0">
+          <div style="padding:16px;text-align:center;font-size:12px;color:#4a5568">No follow-ups scheduled</div>
+        </div>
+      </div>
     </section>
   </div>
 </div>

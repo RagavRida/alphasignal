@@ -221,6 +221,119 @@ function onBDActivity(event) {
   log.insertBefore(item, log.firstChild);
   // Keep max 25 items
   while (log.children.length > 25) log.lastChild.remove();
+
+  // ── Live BD product counters in market view sidebar ──────────────────────
+  _tickBDCounter(event.product, event.action, event.detail);
+}
+
+const _bdCounts = {};
+function _tickBDCounter(product, action, detail) {
+  const map = {
+    'Datasets API':       'bd-count-datasets',
+    'MCP Server':         'bd-count-mcp',
+    'Scraping Browser':   'bd-count-browser',
+    'SERP API':           'bd-count-serp',
+    'Web Scraper API':    'bd-count-scraper',
+    'Web Scraper':        'bd-count-scraper',
+    'Web Unlocker':       'bd-count-unlocker',
+    'Datacenter Proxy':   'bd-count-proxy',
+  };
+  const key = Object.keys(map).find(k => product && product.includes(k));
+  if (!key) return;
+  _bdCounts[key] = (_bdCounts[key] || 0) + 1;
+  const el = document.getElementById(map[key]);
+  if (el) el.textContent = _bdCounts[key];
+
+  // Flash the row
+  const row = el?.closest('.bd-product');
+  if (row) {
+    row.style.transition = 'background 0.1s';
+    row.style.background = 'rgba(0,212,255,0.08)';
+    setTimeout(() => { row.style.background = ''; }, 400);
+  }
+
+  // Update "last call" label
+  const lastEl = document.getElementById('bd-last-call');
+  if (lastEl) lastEl.textContent = `→ ${product}: ${action} ${detail ? '· ' + detail.slice(0,40) : ''}`;
+}
+
+function updateSourceBreakdown() {
+  const counts = { SERP:0, GitHub:0, 'Product Hunt':0, Crunchbase:0 };
+  allLeads.forEach(l => {
+    const src = l.source || '';
+    if (src.includes('GitHub'))        counts['GitHub']++;
+    else if (src.includes('Product'))  counts['Product Hunt']++;
+    else if (src.includes('Crunch'))   counts['Crunchbase']++;
+    else                               counts['SERP']++;
+  });
+  const show = (id, countId, n) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = n > 0 ? 'inline' : 'none';
+    document.getElementById(countId).textContent = n;
+  };
+  show('src-serp',   'src-serp-n',   counts['SERP']);
+  show('src-github', 'src-github-n', counts['GitHub']);
+  show('src-ph',     'src-ph-n',     counts['Product Hunt']);
+  show('src-crunch', 'src-crunch-n', counts['Crunchbase']);
+}
+
+function updateOutreachCounters() {
+  let sent = 0, sched = 0, draft = 0;
+  allLeads.forEach(l => {
+    if (l.status === 'emailed' || l.status === 'replied') sent++;
+    else if (l.emails > 0) sched++;
+    else draft++;
+  });
+  const s = document.getElementById('out-sent');
+  const sc = document.getElementById('out-sched');
+  const d  = document.getElementById('out-draft');
+  if (s)  s.textContent  = sent;
+  if (sc) sc.textContent = sched;
+  if (d)  d.textContent  = draft;
+}
+
+function appendOutreachLog(entry) {
+  const log = document.getElementById('outreach-log');
+  if (!log) return;
+  // Clear placeholder
+  if (log.querySelector('div[style*="text-align:center"]')) log.innerHTML = '';
+  const row = document.createElement('div');
+  row.style.cssText = 'padding:6px 14px;border-bottom:1px solid #1a253540;font-size:11px;display:flex;gap:8px;align-items:flex-start';
+  const color  = entry.step === 1 ? '#00e676' : '#fbbf24';
+  const stepLabel = `Step ${entry.step}`;
+  row.innerHTML = `
+    <span style="color:${color};font-weight:700;flex-shrink:0">${stepLabel}</span>
+    <div style="flex:1;min-width:0">
+      <div style="color:#e8edf5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${entry.company}</div>
+      <div style="color:#4a5568;font-size:10px">${entry.to || ''}</div>
+    </div>
+    <span style="color:#4a5568;font-size:10px;flex-shrink:0;font-family:monospace">${entry.ts || ''}</span>`;
+  log.insertBefore(row, log.firstChild);
+  while (log.children.length > 20) log.lastChild.remove();
+
+  // Increment sent counter
+  const s = document.getElementById('out-sent');
+  if (s) s.textContent = parseInt(s.textContent || 0) + 1;
+}
+
+function appendFollowupQueue(entry) {
+  const q = document.getElementById('followup-queue');
+  if (!q) return;
+  if (q.querySelector('div[style*="text-align:center"]')) q.innerHTML = '';
+  const row = document.createElement('div');
+  row.style.cssText = 'padding:6px 14px;border-bottom:1px solid #1a253540;font-size:11px;display:flex;gap:8px;align-items:center';
+  row.innerHTML = `
+    <span style="color:#fbbf24">⏰</span>
+    <div style="flex:1">
+      <span style="color:#e8edf5">${entry.company}</span>
+      <span style="color:#4a5568;font-size:10px"> · Step ${entry.next_step}</span>
+    </div>
+    <span style="color:#fbbf24;font-size:10px;font-weight:600">${entry.delay}</span>`;
+  q.appendChild(row);
+  // Increment scheduled counter
+  const sc = document.getElementById('out-sched');
+  if (sc) sc.textContent = parseInt(sc.textContent || 0) + 1;
 }
 
 
@@ -305,12 +418,25 @@ async function loadSignals() {
 // ── Lead table ────────────────────────────────────────────────────────────────
 
 function onNewLead(lead) {
-  // Avoid duplicates
   if (!allLeads.find(l => l.id === lead.id)) {
     allLeads.push(lead);
   }
   renderLeads();
   updateStatsFromLeads();
+  updateSourceBreakdown();
+  updateOutreachCounters();
+
+  // If auto-sent, log it
+  if (lead.status === 'emailed') {
+    appendOutreachLog({
+      company:   lead.company_name,
+      to:        lead.domain ? `hello@${lead.domain}` : '',
+      step:      1,
+      ts:        new Date().toLocaleTimeString(),
+    });
+    appendFollowupQueue({ company: lead.company_name, next_step: 2, delay: 'in 3 days' });
+    appendFollowupQueue({ company: lead.company_name, next_step: 3, delay: 'in 7 days' });
+  }
 }
 
 function renderLeads() {
