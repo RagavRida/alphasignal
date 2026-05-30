@@ -268,6 +268,179 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/intelligence/{company}")
+async def get_company_intelligence(company: str):
+    """
+    Company Intelligence Object — structured JSON intelligence per company.
+
+    This is the core data product: instead of raw scraped data, AlphaSignal
+    generates reasoned, structured intelligence objects that are API-consumable
+    by hedge funds, GTM teams, and risk platforms.
+    """
+    # Gather all signal history
+    signal_types = ["hiring_velocity", "pricing_change", "funding", "news",
+                    "financial_health", "supplier_risk", "web_traffic"]
+
+    signals_data = {}
+    risk_factors = []
+    growth_factors = []
+
+    for st in signal_types:
+        history = state.get_signal_history(company, st, days=30)
+        baseline = state.get_baseline(company, st)
+
+        if history:
+            latest = history[0]
+            value = latest.get("value", 0)
+            variance = ((value - baseline) / baseline * 100) if baseline and baseline != 0 else 0
+
+            trend = "stable"
+            if len(history) >= 3:
+                recent_avg = sum(h.get("value", 0) for h in history[:3]) / 3
+                older_avg = sum(h.get("value", 0) for h in history[3:6]) / max(len(history[3:6]), 1) if len(history) > 3 else recent_avg
+                if recent_avg > older_avg * 1.1:
+                    trend = "increasing"
+                elif recent_avg < older_avg * 0.9:
+                    trend = "decreasing"
+
+            signals_data[st] = {
+                "current_value": round(value, 2),
+                "baseline": round(baseline, 2) if baseline else None,
+                "variance_pct": round(variance, 1),
+                "trend": trend,
+                "data_points": len(history),
+                "last_updated": history[0].get("timestamp", ""),
+            }
+
+            # Classify as risk or growth
+            if st in ("supplier_risk", "financial_health") and variance < -10:
+                risk_factors.append(f"{st.replace('_', ' ').title()} declining ({variance:+.1f}%)")
+            elif st == "pricing_change" and variance < -5:
+                risk_factors.append(f"Pricing pressure ({variance:+.1f}%)")
+            elif st == "hiring_velocity" and variance > 20:
+                growth_factors.append(f"Hiring surge ({variance:+.1f}%)")
+            elif st == "web_traffic" and variance > 15:
+                growth_factors.append(f"Traffic growth ({variance:+.1f}%)")
+            elif st == "funding" and value > 0:
+                growth_factors.append(f"Recent funding activity")
+        else:
+            signals_data[st] = {"current_value": None, "trend": "no_data", "data_points": 0}
+
+    # Get recent alerts for this company
+    company_alerts = state.get_company_alerts(company, limit=5)
+
+    # Compute composite scores
+    hiring = signals_data.get("hiring_velocity", {})
+    pricing = signals_data.get("pricing_change", {})
+    traffic = signals_data.get("web_traffic", {})
+    funding = signals_data.get("funding", {})
+    supplier = signals_data.get("supplier_risk", {})
+    financial = signals_data.get("financial_health", {})
+
+    # Growth score (0-100)
+    growth_score = 50  # baseline
+    if hiring.get("variance_pct", 0) > 20: growth_score += 15
+    if traffic.get("variance_pct", 0) > 10: growth_score += 10
+    if funding.get("current_value", 0) > 0: growth_score += 15
+    if hiring.get("trend") == "increasing": growth_score += 10
+    growth_score = min(100, max(0, growth_score))
+
+    # Risk score (0-100, higher = more risky)
+    risk_score = 20  # baseline
+    if supplier.get("variance_pct", 0) < -15: risk_score += 20
+    if financial.get("variance_pct", 0) < -10: risk_score += 15
+    if pricing.get("variance_pct", 0) < -10: risk_score += 15
+    if hiring.get("variance_pct", 0) < -20: risk_score += 20
+    risk_score = min(100, max(0, risk_score))
+
+    # Market sentiment
+    news_val = signals_data.get("news", {}).get("current_value", 0) or 0
+    sentiment = "bullish" if news_val > 0.3 else "bearish" if news_val < -0.3 else "neutral"
+
+    # Earnings prediction
+    earnings_signals = []
+    if hiring.get("variance_pct", 0) > 30: earnings_signals.append("strong hiring")
+    if traffic.get("variance_pct", 0) > 20: earnings_signals.append("traffic surge")
+    if pricing.get("trend") == "increasing": earnings_signals.append("pricing power")
+    if funding.get("current_value", 0) > 0: earnings_signals.append("capital deployment")
+
+    earnings_prediction = {
+        "outlook": "strong" if len(earnings_signals) >= 3 else "moderate" if len(earnings_signals) >= 1 else "uncertain",
+        "confidence": min(95, 40 + len(earnings_signals) * 15),
+        "supporting_signals": earnings_signals,
+        "prediction": f"{'Strong' if len(earnings_signals) >= 3 else 'Moderate' if len(earnings_signals) >= 1 else 'Uncertain'} quarter ahead — {len(earnings_signals)} pre-earnings indicators firing",
+    }
+
+    # Build the Intelligence Object
+    intelligence = {
+        "company": company,
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "data_freshness": "real-time",
+
+        # ── Composite Scores ──
+        "scores": {
+            "growth_score": growth_score,
+            "risk_score": risk_score,
+            "market_sentiment": sentiment,
+            "overall_rating": "strong_buy" if growth_score > 75 and risk_score < 30 else
+                             "buy" if growth_score > 60 else
+                             "hold" if risk_score < 50 else
+                             "sell" if risk_score > 70 else "hold",
+        },
+
+        # ── Signal Breakdown ──
+        "signals": {
+            "hiring_trend": hiring.get("trend", "no_data"),
+            "hiring_growth": f"{hiring.get('variance_pct', 0):+.0f}%" if hiring.get("variance_pct") else "N/A",
+            "pricing_trend": pricing.get("trend", "no_data"),
+            "pricing_change": f"{pricing.get('variance_pct', 0):+.1f}%" if pricing.get("variance_pct") else "N/A",
+            "traffic_trend": traffic.get("trend", "no_data"),
+            "traffic_change": f"{traffic.get('variance_pct', 0):+.1f}%" if traffic.get("variance_pct") else "N/A",
+            "funding_detected": funding.get("current_value", 0) > 0,
+            "supplier_risk_level": "high" if supplier.get("variance_pct", 0) < -20 else "medium" if supplier.get("variance_pct", 0) < -10 else "low",
+            "financial_health": "strong" if financial.get("variance_pct", 0) > 0 else "weakening" if financial.get("variance_pct", 0) < -10 else "stable",
+            "news_sentiment": sentiment,
+        },
+
+        # ── Raw Signal Data ──
+        "signal_details": signals_data,
+
+        # ── Earnings Prediction ──
+        "earnings_prediction": earnings_prediction,
+
+        # ── Risk Assessment ──
+        "risk_assessment": {
+            "risk_level": "high" if risk_score > 60 else "medium" if risk_score > 35 else "low",
+            "risk_score": risk_score,
+            "risk_factors": risk_factors if risk_factors else ["No significant risk factors detected"],
+            "growth_factors": growth_factors if growth_factors else ["Monitoring for growth signals"],
+        },
+
+        # ── Recent Alerts ──
+        "recent_alerts": [
+            {
+                "alert_id": a.get("alert_id"),
+                "type": a.get("alert_type"),
+                "headline": a.get("headline"),
+                "confidence": a.get("confidence_score"),
+                "direction": a.get("recommendation", {}).get("direction"),
+                "timestamp": a.get("timestamp"),
+            }
+            for a in company_alerts[:5]
+        ],
+
+        # ── Data Sources ──
+        "data_sources": {
+            "bright_data_products": ["MCP Server", "SERP API", "Web Scraper API", "Scraping Browser", "Web Unlocker"],
+            "ai_engine": "Claude Sonnet 3.5 via AI/ML API",
+            "signal_count": sum(1 for s in signals_data.values() if s.get("data_points", 0) > 0),
+            "total_data_points": sum(s.get("data_points", 0) for s in signals_data.values()),
+        },
+    }
+
+    return intelligence
+
+
 @app.get("/api/companies")
 async def get_companies():
     """
