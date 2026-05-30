@@ -103,11 +103,23 @@ class HiringVelocityDetector:
         self.threshold = threshold
 
     async def detect(self, company: str) -> dict:
-        # Step 1: SERP API — confirm company is actively hiring (signal quality check)
-        serp_results = await self.client.serp_search(f"{company} jobs hiring site:linkedin.com OR site:indeed.com")
-
-        # Step 2: Web Scraper API — get structured job listings
-        jobs = await self.client.scrape_linkedin_jobs(company)
+        # Step 1: Bright Data LinkedIn Jobs Dataset (structured, pre-built)
+        # Falls back to live scraping if dataset returns nothing
+        dataset_jobs = await self.client.dataset_linkedin_jobs(company, limit=100)
+        if dataset_jobs:
+            jobs = [{
+                "title":      j.get("title", ""),
+                "company":    company,
+                "department": self.client._infer_dept(j.get("title", "")),
+                "level":      self.client._infer_level(j.get("title", "")),
+                "location":   j.get("location", ""),
+                "posted":     j.get("posted_date", ""),
+            } for j in dataset_jobs] + [{"_total_count": len(dataset_jobs)}]
+            serp_results = []
+        else:
+            # Fallback: SERP API + Web Scraper live scraping
+            serp_results = await self.client.serp_search(f"{company} jobs hiring site:linkedin.com OR site:indeed.com")
+            jobs = await self.client.scrape_linkedin_jobs(company)
 
         # Extract total count (last element may have _total_count)
         total_count = next(
@@ -262,7 +274,29 @@ class FundingDetector:
         self.client = client
 
     async def detect(self, company: str) -> dict:
-        # SERP API — search for recent funding news
+        # PRIMARY: Bright Data Crunchbase Organizations Dataset (structured funding data)
+        dataset_record = await self.client.dataset_funding(company)
+        if dataset_record:
+            amount_m = self._parse_dataset_amount(dataset_record.get("funding_total", ""))
+            last_type = dataset_record.get("last_funding_type", "")
+            last_date = dataset_record.get("last_funding_date", "")
+            alert = amount_m >= 10
+            conf  = 92.0 if alert else 30.0
+            narrative = (
+                f"{company} last raised {last_type} (~${amount_m:.0f}M) on {last_date} per Crunchbase dataset."
+            ) if alert else f"No significant funding found in Crunchbase dataset for {company}."
+            state.save_signal(company, self.SIGNAL_TYPE, float(amount_m), {"dataset_record": dataset_record})
+            return {
+                "signal_type": self.SIGNAL_TYPE, "company": company,
+                "current_value": float(amount_m), "baseline": 0,
+                "variance_pct": 100.0 if alert else 0,
+                "alert": alert, "confidence": conf,
+                "source": "Bright Data Datasets (Crunchbase Organizations)",
+                "details": {"funding_type": last_type, "funding_date": last_date, "amount_m": amount_m},
+                "narrative": narrative, "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        # FALLBACK: SERP API — search for recent funding news
         results = await self.client.serp_search(f"{company} funding raised investment 2024 2025")
 
         # Parse funding mentions
@@ -305,6 +339,14 @@ class FundingDetector:
             "narrative": narrative,
             "timestamp": datetime.utcnow().isoformat(),
         }
+
+    def _parse_dataset_amount(self, value) -> float:
+        """Parse funding_total from Crunchbase dataset (may be string like '$80M' or int)."""
+        if isinstance(value, (int, float)):
+            return float(value) / 1_000_000 if value > 1_000_000 else float(value)
+        if isinstance(value, str):
+            return self._extract_amount(value.lower()) or 0.0
+        return 0.0
 
     def _extract_amount(self, text: str) -> Optional[float]:
         """Extract dollar amount from text."""

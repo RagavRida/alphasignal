@@ -667,6 +667,174 @@ class BrightDataClient:
             pass
         return _demo_traffic(company)
 
+    # ── Bright Data Datasets API ──────────────────────────────────────────────
+    #
+    # Bright Data maintains pre-built, continuously refreshed datasets that are
+    # queried via POST /datasets/v3/trigger → poll /datasets/v3/progress/<id>
+    # → GET /datasets/v3/download/<id>
+    #
+    # This is faster and more reliable than live scraping because the data is
+    # already collected and structured. We use it when available and fall back
+    # to live scraping when the dataset doesn't cover the target.
+
+    DATASETS_BASE = "https://api.brightdata.com/datasets/v3"
+
+    DATASET_IDS = {
+        # LinkedIn job postings — fields: company, title, location, posted_date, seniority
+        "linkedin_jobs":   "gd_lpfll7v5hcqtkxl6l4",
+        # Crunchbase organizations — fields: name, funding_total, last_funding_type, last_funding_date
+        "crunchbase_orgs": "gd_l1viktl72bvl7bjuj0",
+        # G2 product reviews — fields: product, rating, review_text, date, reviewer_title
+        "g2_reviews":      "gd_m66ep1ittlt87kng1",
+        # SimilarWeb traffic — fields: domain, visits, visit_duration, pages_per_visit, bounce_rate
+        "similarweb":      "gd_lz11l67o2cb3r0lkj3",
+    }
+
+    async def dataset_query(
+        self,
+        dataset_key: str,
+        filters: list[dict],
+        limit: int = 100,
+    ) -> list[dict]:
+        """
+        Query a Bright Data pre-built dataset.
+
+        Steps:
+          1. POST /trigger  → snapshot_id
+          2. Poll  /progress/<id> until ready
+          3. GET   /download/<id> → JSONL records
+
+        Args:
+            dataset_key: key in DATASET_IDS (e.g. "linkedin_jobs")
+            filters:     list of filter dicts, e.g. [{"company": "Coda"}]
+            limit:       max records to return
+        """
+        if self.demo_mode or not self.api_token:
+            return []
+
+        dataset_id = self.DATASET_IDS.get(dataset_key)
+        if not dataset_id:
+            return []
+
+        await _emit("Datasets API", f"query:{dataset_key}", str(filters)[:60])
+
+        headers = {
+            "Authorization": f"Bearer {self.api_token}",
+            "Content-Type":  "application/json",
+        }
+        rest = await self._get_rest()
+
+        # Step 1 — trigger snapshot
+        try:
+            async with rest.post(
+                f"{self.DATASETS_BASE}/trigger",
+                headers=headers,
+                json={"dataset_id": dataset_id, "include_errors": False, "filters": filters},
+            ) as resp:
+                if resp.status not in (200, 201):
+                    body = await resp.text()
+                    print(f"  [Datasets trigger error {resp.status}]: {body[:120]}")
+                    return []
+                data = await resp.json()
+                snapshot_id = data.get("snapshot_id", "")
+            if not snapshot_id:
+                return []
+        except Exception as e:
+            print(f"  [Datasets trigger exception]: {e}")
+            return []
+
+        # Step 2 — poll until ready (max 60s)
+        for _ in range(12):
+            await asyncio.sleep(5)
+            try:
+                async with rest.get(
+                    f"{self.DATASETS_BASE}/progress/{snapshot_id}",
+                    headers=headers,
+                ) as resp:
+                    prog = await resp.json()
+                    status = prog.get("status", "")
+                    if status == "ready":
+                        break
+                    if status in ("failed", "error"):
+                        print(f"  [Datasets snapshot failed]: {prog}")
+                        return []
+            except Exception:
+                pass
+        else:
+            print(f"  [Datasets timeout] snapshot {snapshot_id} did not finish in 60s")
+            return []
+
+        # Step 3 — download JSONL
+        try:
+            async with rest.get(
+                f"{self.DATASETS_BASE}/download/{snapshot_id}",
+                headers={**headers, "Accept": "application/x-ndjson"},
+            ) as resp:
+                if resp.status != 200:
+                    return []
+                text = await resp.text()
+            records = []
+            for line in text.splitlines():
+                line = line.strip()
+                if line:
+                    try:
+                        records.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
+            return records[:limit]
+        except Exception as e:
+            print(f"  [Datasets download exception]: {e}")
+            return []
+
+    async def dataset_linkedin_jobs(self, company: str, limit: int = 50) -> list[dict]:
+        """Query LinkedIn Job Postings dataset for a company."""
+        records = await self.dataset_query(
+            "linkedin_jobs",
+            filters=[{"company": company}],
+            limit=limit,
+        )
+        if not records:
+            return []
+        await _emit("Datasets API", "linkedin_jobs", f"{company} → {len(records)} jobs")
+        return records
+
+    async def dataset_funding(self, company: str) -> dict:
+        """Query Crunchbase Organizations dataset for funding data."""
+        records = await self.dataset_query(
+            "crunchbase_orgs",
+            filters=[{"name": company}],
+            limit=5,
+        )
+        if not records:
+            return {}
+        r = records[0]
+        await _emit("Datasets API", "crunchbase_orgs", f"{company} → {r.get('last_funding_type','')}")
+        return r
+
+    async def dataset_g2_reviews(self, product: str, limit: int = 30) -> list[dict]:
+        """Query G2 Reviews dataset for a product."""
+        records = await self.dataset_query(
+            "g2_reviews",
+            filters=[{"product": product}],
+            limit=limit,
+        )
+        if not records:
+            return []
+        await _emit("Datasets API", "g2_reviews", f"{product} → {len(records)} reviews")
+        return records
+
+    async def dataset_traffic(self, domain: str) -> dict:
+        """Query SimilarWeb dataset for a domain."""
+        records = await self.dataset_query(
+            "similarweb",
+            filters=[{"domain": domain}],
+            limit=1,
+        )
+        if not records:
+            return {}
+        await _emit("Datasets API", "similarweb_traffic", domain)
+        return records[0]
+
     # ── Direct MCP tool call ──────────────────────────────────────────────────
 
     async def mcp_query(self, tool: str, params: dict) -> Any:

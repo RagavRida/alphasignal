@@ -121,10 +121,34 @@ class IntentMonitor:
         return await self._serp_to_signals(q, "hacker_news", term)
 
     async def _monitor_g2(self, term: str) -> list[IntentSignal]:
-        """Primary: Web Unlocker — directly scrape G2 reviews page for this product."""
+        """
+        PRIMARY: Bright Data G2 Reviews Dataset (pre-built, structured).
+        FALLBACK: Web Unlocker live scrape → SERP.
+        """
         signals = []
 
-        # Step 1: Web Unlocker — scrape G2 reviews page directly (bypasses bot protection)
+        # Step 1: Bright Data G2 Reviews Dataset
+        try:
+            reviews = await self.bd.dataset_g2_reviews(term, limit=30)
+            if reviews:
+                for rev in reviews:
+                    text = rev.get("review_text", "") or rev.get("body", "")
+                    for intent_type, quote, conf in self._detect_intent(text, term):
+                        signals.append(IntentSignal(
+                            id=hashlib.md5((term + quote[:20]).encode()).hexdigest()[:10],
+                            intent_type=intent_type,
+                            source="g2_dataset",
+                            source_url=f"https://www.g2.com/products/{term.lower()}/reviews",
+                            quote=quote[:300],
+                            company_mentioned=term,
+                            confidence=min(conf + 20, 99),  # Dataset = highest confidence
+                        ))
+                if signals:
+                    return signals
+        except Exception as e:
+            print(f"    [G2 Dataset] {e}")
+
+        # Step 2: Web Unlocker — directly scrape G2 reviews page (bypasses bot protection)
         try:
             slug = term.lower().replace(" ", "-").replace(".", "")
             g2_url = f"https://www.g2.com/products/{slug}/reviews"
