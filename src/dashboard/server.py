@@ -55,6 +55,25 @@ _config       = None
 _monitor_ref  = None
 
 
+@app.on_event("startup")
+async def start_background_monitor():
+    """Launch the autonomous monitor as a background task in the same process."""
+    demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
+    if demo_mode:
+        return
+    config_path = Path("config.yaml")
+    if not config_path.exists():
+        return
+    try:
+        from src.monitor import AutonomousMonitor, subscribe_to_alerts
+        monitor = AutonomousMonitor(config_path=str(config_path), demo_mode=False)
+        monitor.check_interval = int(os.getenv("CHECK_INTERVAL", "3600"))
+        subscribe_to_alerts(broadcast_alert)
+        asyncio.create_task(monitor.run())
+    except Exception as e:
+        print(f"[monitor] Failed to start background monitor: {e}", flush=True)
+
+
 def _get_config():
     global _config
     if _config is None:
