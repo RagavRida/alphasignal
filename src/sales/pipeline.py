@@ -212,13 +212,11 @@ class SalesPipeline:
                             "subject": e.subject, "body": e.body[:200] + "...",
                         }) + "\n")
 
-                if auto_send and lead.contacts:
-                    contact = lead.contacts[0]
-                    if contact.email:
-                        sent = await self.sequencer.send_email(emails[0], contact.email, contact.name)
-                        if sent:
-                            sales_state.update_email_status(emails[0].id, "sent")
-                            sales_state.update_lead_status(lead.id, "emailed")
+                if auto_send:
+                    sent = await self._auto_send_step1(lead, emails[0])
+                    if sent:
+                        sales_state.update_email_status(emails[0].id, "sent")
+                        sales_state.update_lead_status(lead.id, "emailed")
 
                 # Broadcast to WebSocket — use 'company_name' to match frontend
                 await _broadcast({
@@ -268,6 +266,41 @@ class SalesPipeline:
 
         await self.bd.close()
         return summary
+
+    async def _auto_send_step1(self, lead: Lead, email) -> bool:
+        """
+        Automatically send Step 1 email via Resend.
+        Priority: known contact email → guessed email patterns from domain.
+        """
+        import re
+
+        # Try known contacts first
+        for contact in (lead.contacts or []):
+            if contact.email and "@" in contact.email:
+                sent = await self.sequencer.send_email(email, contact.email, contact.name)
+                if sent:
+                    console.print(f"  [green]✉ Auto-sent to {contact.email}[/green]")
+                    return True
+
+        # Guess email from domain if no contact found
+        if lead.domain:
+            domain = lead.domain.lstrip("www.").strip("/")
+            first_name = "founder"
+            company_slug = re.sub(r"[^a-z]", "", lead.company_name.lower().split()[0])
+            guesses = [
+                f"hello@{domain}",
+                f"contact@{domain}",
+                f"{first_name}@{domain}",
+                f"{company_slug}@{domain}",
+            ]
+            for addr in guesses:
+                sent = await self.sequencer.send_email(email, addr, "")
+                if sent:
+                    console.print(f"  [green]✉ Auto-sent to guessed address {addr}[/green]")
+                    return True
+
+        console.print(f"  [yellow]⚠ No valid email found for {lead.company_name} — skipping auto-send[/yellow]")
+        return False
 
     def _print_lead_table(self, leads: list[Lead]):
         table = Table(box=box.SIMPLE, show_header=True, header_style="bold dim")

@@ -336,7 +336,9 @@ async def run_sales_pipeline(body: dict, background_tasks: BackgroundTasks):
     icp_text   = body.get("icp_text", "")
     max_leads  = int(body.get("max_leads", 20))
     competitor = body.get("competitor", "")
-    auto_send  = bool(body.get("auto_send", False))
+    # Auto-send if Resend key is configured, unless caller explicitly disables it
+    has_resend  = bool(os.getenv("RESEND_API_KEY", ""))
+    auto_send   = bool(body.get("auto_send", has_resend))
 
     if not icp_text:
         return {"status": "error", "message": "icp_text is required"}

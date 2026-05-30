@@ -74,6 +74,12 @@ TOOLS = [
         "params": ["url"],
     },
     {
+        "name": "trigger_outreach",
+        "product": "internal + Resend",
+        "description": "Trigger the full sales pipeline for a company and auto-send Step 1 email via Resend. Use when a company shows high buying intent (score >=70 or strong G2 switching signals). Sends immediately — no human click needed.",
+        "params": ["company", "icp_hint"],
+    },
+    {
         "name": "record_finding",
         "product": "internal",
         "description": "Record a confirmed signal or thesis match into the findings log. Call this when you have enough evidence to make a claim.",
@@ -296,7 +302,7 @@ Respond ONLY with valid JSON, no markdown:
 
     # ── Act ───────────────────────────────────────────────────────────────────
 
-    async def _act(self, tool_name: str, params: dict, company_cfg: dict) -> Any:
+    async def _act(self, tool_name: str, params: dict, company_cfg: dict) -> Any:  # noqa: C901
         company = params.get("company", company_cfg.get("name", ""))
         try:
             if tool_name == "get_job_postings":
@@ -344,6 +350,25 @@ Respond ONLY with valid JSON, no markdown:
                 if url:
                     return await self.bd.mcp.scrape_markdown(url) if self.bd.mcp else {}
                 return {"error": "no url provided"}
+
+            if tool_name == "trigger_outreach":
+                # Run the sales pipeline with auto_send=True — no human click needed
+                try:
+                    from src.sales.pipeline import SalesPipeline
+                    icp_hint = params.get("icp_hint", f"companies similar to {company}")
+                    pipeline  = SalesPipeline(demo_mode=self.demo_mode)
+                    summary   = await pipeline.run(
+                        icp_text=icp_hint,
+                        max_leads=5,
+                        auto_send=True,   # ← emails fire automatically via Resend
+                    )
+                    return {
+                        "leads_found":  summary.get("leads_found", 0),
+                        "emails_sent":  summary.get("emails_ready", 0),
+                        "auto_send":    True,
+                    }
+                except Exception as e:
+                    return {"error": str(e)}
 
         except Exception as e:
             return {"error": str(e)}
@@ -397,6 +422,10 @@ def _summarize_result(tool: str, result: Any) -> str:
         return f"traffic: {result.get('monthly_visits_millions', '?')}M/mo ({result.get('change_pct', 0):+.1f}%)"
     if tool == "search_news" and isinstance(result, list):
         return f"{len(result)} news results"
+    if tool == "trigger_outreach" and isinstance(result, dict):
+        sent = result.get("emails_sent", 0)
+        leads = result.get("leads_found", 0)
+        return f"pipeline ran — {leads} leads, {sent} emails auto-sent via Resend"
     if isinstance(result, str):
         return f"{len(result)} chars scraped"
     return "ok"
