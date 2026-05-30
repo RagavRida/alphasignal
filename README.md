@@ -4,7 +4,7 @@
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-alphasignal--86xn.onrender.com-brightgreen?style=flat-square)](https://alphasignal-86xn.onrender.com)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square)](https://python.org)
-[![Bright Data](https://img.shields.io/badge/Bright%20Data-6%20products-orange?style=flat-square)](https://brightdata.com)
+[![Bright Data](https://img.shields.io/badge/Bright%20Data-5%20products-orange?style=flat-square)](https://brightdata.com)
 
 ---
 
@@ -26,13 +26,13 @@ Every hour, AlphaSignal runs seven independent detectors against each company in
 
 | Detector | Data Source | What It Reads | Bright Data Product |
 |---|---|---|---|
-| `HiringVelocityDetector` | LinkedIn Jobs | Open roles, hiring rate, layoff patterns | **Datasets API** (LinkedIn Jobs) → Scraping Browser fallback |
+| `HiringVelocityDetector` | LinkedIn Jobs | Open roles, hiring rate, layoff patterns | Scraping Browser (JS-rendered) → SERP API fallback |
 | `PricingChangeDetector` | Pricing pages | Price changes vs. last cached baseline | Web Scraper API |
-| `FundingDetector` | Crunchbase | Round size, stage, lead investors | **Datasets API** (Crunchbase Orgs) → SERP API fallback |
+| `FundingDetector` | TechCrunch, Crunchbase | Round size, stage, lead investors | SERP API |
 | `NewsDetector` | Google News | Acquisitions, launches, exec departures | SERP API |
 | `FinancialHealthDetector` | SEC EDGAR | 10-Q filings, cash burn (public companies) | Web Unlocker (CAPTCHA) |
 | `SupplierRiskDetector` | Trade databases, forums | Supply chain disruption signals | SERP API + Web Unlocker |
-| `WebTrafficDetector` | SimilarWeb | Traffic growth/decline trends | **Datasets API** (SimilarWeb) → Datacenter Proxy → Web Scraper fallback |
+| `WebTrafficDetector` | SimilarWeb | Traffic growth/decline trends | Datacenter Proxy → Web Scraper API fallback |
 
 Each detector returns a normalized signal object: `{type, company, value, delta, confidence, raw_evidence}`.
 
@@ -98,8 +98,7 @@ On-demand discovery and outreach for any ICP description.
 
 3. Intent Monitoring
    For each scored lead (score ≥ 60):
-   - G2 reviews from Datasets API (pre-built, structured) → buying intent signals
-   - G2 reviews via Web Unlocker (fallback, live scrape)
+   - G2 reviews via Web Unlocker → buying intent signals
    - Reddit/HN mentions scraped → frustration signals with existing tools
    - Glassdoor job postings → budget/team signals
 
@@ -134,9 +133,7 @@ The reasoning: a company that just raised is in buying mode. Similar companies i
 
 ## Why Each Bright Data Product
 
-This isn't "use whichever API is cheapest." Each product is chosen because other approaches fail on that specific target — and the six products form a priority stack, not independent integrations.
-
-**Datasets API** — the highest-priority path for structured data. Bright Data maintains pre-built, continuously refreshed datasets for LinkedIn Job Postings, Crunchbase Organizations, G2 Reviews, and SimilarWeb traffic. AlphaSignal queries these first via `POST /datasets/v3/trigger` → poll → `GET /datasets/v3/download`. Structured JSON, no parsing, highest confidence scores. Used by `HiringVelocityDetector`, `FundingDetector`, `WebTrafficDetector`, and `IntentMonitor`.
+This isn't "use whichever API is cheapest." Each product is chosen because other approaches fail on that specific target — and the five products form a priority stack, not independent integrations.
 
 **Datacenter Proxy** — routes outbound HTTP requests through `brd.superproxy.io` using a real proxy tunnel (not an API endpoint wrapper). Used specifically for SimilarWeb when the Datasets API returns nothing — SimilarWeb aggressively blocks cloud provider IPs (AWS, GCP, Render). The proxy exits from a Bright Data datacenter IP, bypassing the block entirely. Wired via `aiohttp`'s native proxy support in `proxy_fetch()`.
 
@@ -160,8 +157,7 @@ flowchart TD
         C["👁️ Watch List\n(config.yaml)"]
     end
 
-    subgraph BD["Bright Data Infrastructure (6 products)"]
-        BD0["Datasets API\nLinkedIn Jobs · Crunchbase\nG2 Reviews · SimilarWeb"]
+    subgraph BD["Bright Data Infrastructure (5 products)"]
         BD1["MCP Server\nscrape_as_markdown, extract"]
         BD2["SERP API\nGoogle search at scale"]
         BD3["Web Scraper API\npricing pages"]
@@ -206,16 +202,13 @@ flowchart TD
     A -->|"brand research"| BD2
     C --> ENGINE1
 
-    BD0 --> D1
     BD4 --> D1
     BD3 --> D2
-    BD0 --> D3
     BD2 --> D3
     BD2 --> D4
     BD5 --> D5
     BD2 --> D6
     BD5 --> D6
-    BD0 --> D7
     BD6 --> D7
     BD3 --> D7
 
@@ -228,7 +221,6 @@ flowchart TD
     E1 --> E2
     E2 -->|"SERP × 8 queries"| BD2
     E2 --> E3
-    E3 -->|"G2 reviews dataset"| BD0
     E3 -->|"G2 · Glassdoor fallback"| BD5
     E3 -->|"Reddit · HN"| BD2
     E2 --> E4
@@ -252,13 +244,13 @@ Brand name
 Every hour (Market Monitor):
   watch list companies
     └─ 7 detectors run in parallel
-         ├─ HiringVelocity  → Datasets API (LinkedIn Jobs) → Scraping Browser fallback
+         ├─ HiringVelocity  → Scraping Browser → SERP API fallback
          ├─ PricingChange   → Web Scraper API (baseline diff)
-         ├─ Funding         → Datasets API (Crunchbase Orgs) → SERP API fallback
+         ├─ Funding         → SERP API (TechCrunch, Crunchbase)
          ├─ News            → SERP API (Google News)
          ├─ FinancialHealth → Web Unlocker (SEC EDGAR)
          ├─ SupplierRisk    → SERP API + Web Unlocker
-         └─ WebTraffic      → Datasets API (SimilarWeb) → Datacenter Proxy → Web Scraper fallback
+         └─ WebTraffic      → Datacenter Proxy → Web Scraper API fallback
               └─ normalized signals: {type, value, delta, confidence, evidence_url}
                    └─ SignalCorrelator: test 5 cross-signal thesis patterns
                         └─ thesis match → AI/ML API writes investment alert
@@ -270,7 +262,7 @@ On demand (Sales Pipeline):
          └─ SERP API → company candidates (de-duped)
               └─ AI/ML API scores each 0–100 vs ICP
                    └─ score ≥ 60 → intent monitoring
-                        ├─ G2 reviews: Datasets API → Web Unlocker fallback
+                        ├─ G2 reviews: Web Unlocker
                         ├─ Reddit/HN: SERP API
                         └─ Glassdoor: Web Unlocker
                              └─ context fetch (blog/jobs via MCP Server)
@@ -340,7 +332,7 @@ DEMO_MODE=false              # Set true to skip all API calls
 ```
 alphasignal/
 ├── src/
-│   ├── bright_data_client.py   # Unified async Bright Data client (all 6 products)
+│   ├── bright_data_client.py   # Unified async Bright Data client (all 5 products)
 │   ├── signal_detectors.py     # 7 parallel detectors
 │   ├── signal_correlator.py    # Cross-signal thesis engine (5 rules)
 │   ├── alert_generator.py      # AI/ML API alert narration
@@ -385,7 +377,7 @@ These are configurable in `config.yaml`:
 
 ## Built With
 
-- **[Bright Data](https://brightdata.com)** — web data infrastructure (Datasets API, MCP Server, SERP API, Web Scraper API, Scraping Browser, Web Unlocker, Datacenter Proxy)
+- **[Bright Data](https://brightdata.com)** — web data infrastructure (MCP Server, SERP API, Web Scraper API, Scraping Browser, Web Unlocker, Datacenter Proxy)
 - **[AI/ML API](https://aimlapi.com)** — model served via OpenAI-compatible endpoint
 - **[FastAPI](https://fastapi.tiangolo.com)** — async Python web framework
 - **[Resend](https://resend.com)** — transactional email

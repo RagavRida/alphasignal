@@ -768,16 +768,16 @@ class BrightDataClient:
 
     DATASETS_BASE = "https://api.brightdata.com/datasets/v3"
 
-    DATASET_IDS = {
-        # LinkedIn job postings — fields: company, title, location, posted_date, seniority
-        "linkedin_jobs":   "gd_lpfll7v5hcqtkxl6l4",
-        # Crunchbase organizations — fields: name, funding_total, last_funding_type, last_funding_date
-        "crunchbase_orgs": "gd_l1viktl72bvl7bjuj0",
-        # G2 product reviews — fields: product, rating, review_text, date, reviewer_title
-        "g2_reviews":      "gd_m66ep1ittlt87kng1",
-        # SimilarWeb traffic — fields: domain, visits, visit_duration, pages_per_visit, bounce_rate
-        "similarweb":      "gd_lz11l67o2cb3r0lkj3",
-    }
+    # Dataset IDs — loaded from env vars so they work when configured,
+    # and silently skip when not (falls back to live scraping).
+    @property
+    def DATASET_IDS(self) -> dict:
+        return {
+            "linkedin_jobs":   os.getenv("BD_DATASET_LINKEDIN_JOBS", ""),
+            "crunchbase_orgs": os.getenv("BD_DATASET_CRUNCHBASE", ""),
+            "g2_reviews":      os.getenv("BD_DATASET_G2", ""),
+            "similarweb":      os.getenv("BD_DATASET_SIMILARWEB", ""),
+        }
 
     async def dataset_query(
         self,
