@@ -367,9 +367,79 @@ function formatTimeAgo(ts) {
   return `${Math.floor(secs/86400)}d ago`;
 }
 
+// ─── Agent Reasoning SSE ─────────────────────────────────────────────────────
+
+let agentCount = 0;
+
+function connectAgentSSE() {
+  const es = new EventSource('/sse/agent');
+  es.onmessage = (e) => {
+    const thought = JSON.parse(e.data);
+    renderAgentThought(thought);
+  };
+}
+
+function renderAgentThought(t) {
+  const log = document.getElementById('agent-log');
+  if (!log) return;
+
+  // Clear empty state on first thought
+  if (log.querySelector('.empty-state')) log.innerHTML = '';
+
+  agentCount++;
+  document.getElementById('nav-agent-count').textContent = agentCount;
+
+  const colors = {
+    agent_start:       '#00d4ff',
+    agent_thought:     '#fbbf24',
+    agent_observation: '#00e676',
+    agent_finding:     '#f472b6',
+    agent_stop:        '#8892a0',
+  };
+  const color = colors[t.type] || '#8892a0';
+
+  const icons = {
+    agent_start:       '▶',
+    agent_thought:     '💭',
+    agent_observation: '👁',
+    agent_finding:     '★',
+    agent_stop:        '■',
+  };
+
+  const row = document.createElement('div');
+  row.style.cssText = `display:flex;gap:10px;align-items:flex-start;padding:10px 12px;
+    background:#0d1220;border:1px solid #1a2535;border-left:3px solid ${color};
+    border-radius:8px;font-size:12px;font-family:var(--font-mono,monospace)`;
+
+  let content = '';
+  if (t.type === 'agent_thought') {
+    content = `<div style="color:${color};font-weight:700">${t.company} · step ${t.step}</div>
+      <div style="color:#e8edf5;margin-top:4px">${t.thought || ''}</div>
+      ${t.tool ? `<div style="color:#8892a0;margin-top:3px">→ calling <span style="color:${color}">${t.tool}</span> ${JSON.stringify(t.params||{})}</div>` : ''}`;
+  } else if (t.type === 'agent_observation') {
+    content = `<div style="color:${color};font-weight:700">${t.company} · ${t.tool}</div>
+      <div style="color:#8892a0;margin-top:2px">[${t.product || ''}] ${t.summary || ''}</div>`;
+  } else if (t.type === 'agent_finding') {
+    content = `<div style="color:${color};font-weight:700">FINDING: ${t.thesis}</div>
+      <div style="color:#e8edf5;margin-top:2px">${t.company} · ${t.confidence}% confidence · ${t.direction}</div>`;
+  } else if (t.type === 'agent_start') {
+    content = `<div style="color:${color};font-weight:700">Starting investigation: ${t.company}</div>`;
+  } else if (t.type === 'agent_stop') {
+    content = `<div style="color:${color}">Stopped: ${t.reason || 'complete'}</div>`;
+  }
+
+  row.innerHTML = `<span style="color:${color};font-size:14px;flex-shrink:0">${icons[t.type]||'·'}</span>
+    <div style="flex:1"><span style="color:#4a5568;font-size:10px">${t.ts||''}</span> ${content}</div>`;
+
+  log.prepend(row);
+  // Keep last 100 entries
+  while (log.children.length > 100) log.removeChild(log.lastChild);
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 connectSSE();
+connectAgentSSE();
 loadStatus();
 loadCompanies();
 

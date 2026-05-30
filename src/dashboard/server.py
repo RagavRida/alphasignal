@@ -45,6 +45,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # ── SSE queue registries ──────────────────────────────────────────────────────
 _sse_monitor_queues: Set[asyncio.Queue] = set()
 _sse_sales_queues:   Set[asyncio.Queue] = set()
+_sse_agent_queues:   Set[asyncio.Queue] = set()
 
 # Keep WebSocket sets alive so broadcast_alert signature stays compatible
 _ws_clients:       Set[WebSocket] = set()
@@ -66,9 +67,11 @@ async def start_background_monitor():
         return
     try:
         from src.monitor import AutonomousMonitor, subscribe_to_alerts
+        from src.agent import subscribe_to_thoughts
         monitor = AutonomousMonitor(config_path=str(config_path), demo_mode=False)
         monitor.check_interval = int(os.getenv("CHECK_INTERVAL", "3600"))
         subscribe_to_alerts(broadcast_alert)
+        subscribe_to_thoughts(broadcast_agent_thought)
         asyncio.create_task(monitor.run())
     except Exception as e:
         print(f"[monitor] Failed to start background monitor: {e}", flush=True)
@@ -102,6 +105,10 @@ async def broadcast_alert(alert: dict):
 
 async def broadcast_sales_event(event: dict):
     _enqueue(_sse_sales_queues, json.dumps(event))
+
+
+async def broadcast_agent_thought(thought: dict):
+    _enqueue(_sse_agent_queues, json.dumps(thought))
 
 
 async def _on_bd_activity(event: dict):
@@ -172,6 +179,28 @@ async def sse_sales():
             pass
         finally:
             _sse_sales_queues.discard(queue)
+
+    return StreamingResponse(generate(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+@app.get("/sse/agent")
+async def sse_agent():
+    """Stream agent reasoning thoughts in real-time."""
+    queue: asyncio.Queue = asyncio.Queue(maxsize=200)
+    _sse_agent_queues.add(queue)
+
+    async def generate():
+        try:
+            while True:
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=20.0)
+                    yield f"data: {msg}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except (GeneratorExit, Exception):
+            pass
+        finally:
+            _sse_agent_queues.discard(queue)
 
     return StreamingResponse(generate(), media_type="text/event-stream", headers=SSE_HEADERS)
 

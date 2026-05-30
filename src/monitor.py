@@ -78,6 +78,10 @@ class AutonomousMonitor:
         # Bright Data client
         self.bd = BrightDataClient.from_env()
 
+        # Agent (ReAct loop — wraps detectors as tools with AI reasoning)
+        from src.agent import AlphaSignalAgent
+        self.agent = AlphaSignalAgent(self.bd, demo_mode=demo_mode)
+
         # Signal detectors
         self.hiring    = HiringVelocityDetector(self.bd, self.config["thresholds"]["hiring_velocity_alert"])
         self.pricing   = PricingChangeDetector(self.bd, self.config["thresholds"]["pricing_change_alert"])
@@ -157,6 +161,11 @@ class AutonomousMonitor:
         console.print(f"\n[bold]📊 {company}[/bold] ({ticker})")
 
         try:
+            # ── Agent investigation (ReAct loop, runs concurrently) ────────
+            agent_task = asyncio.create_task(
+                self.agent.investigate(company, company_cfg)
+            )
+
             # ── Run all detectors in parallel ──────────────────────────────
             detector_tasks = {
                 "hiring":    self.hiring.detect(company),
@@ -202,6 +211,15 @@ class AutonomousMonitor:
 
             alert = await self.alert_gen.generate_alert(company, correlation, signals)
             await self._deliver_alert(alert)
+
+            # ── Await agent findings (non-blocking — already running) ──────
+            try:
+                agent_findings = await asyncio.wait_for(agent_task, timeout=60)
+                for finding in agent_findings:
+                    console.print(f"  [bold cyan]🤖 Agent finding: {finding.get('alert_type')} ({finding.get('confidence_score', 0):.0f}%)[/bold cyan]")
+                    await self._deliver_alert(finding)
+            except asyncio.TimeoutError:
+                console.print(f"  [dim]Agent timed out for {company}[/dim]")
 
         except Exception as e:
             console.print(f"  [red]Error monitoring {company}: {e}[/red]")

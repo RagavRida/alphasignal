@@ -42,6 +42,11 @@
     <span class="sn-label">Unified Signal Feed</span>
     <span class="sn-badge pulse" id="nav-signal-count">0</span>
   </button>
+  <button class="sn-item" data-view="agent" onclick="switchView('agent', this)">
+    <span class="sn-icon">🤖</span>
+    <span class="sn-label">Agent Reasoning</span>
+    <span class="sn-badge pulse" id="nav-agent-count">0</span>
+  </button>
 
   <div class="sn-divider"></div>
   <div class="sn-section-label">POWERED BY</div>
@@ -273,6 +278,16 @@
   </div>
   <div class="unified-feed" id="unified-feed">
     <div class="empty-state"><div class="spinner"></div><p>Waiting for signals…</p></div>
+  </div>
+</div>
+
+<div class="view hidden" id="view-agent">
+  <div class="unified-header">
+    <h2 class="unified-title">🤖 Agent Reasoning</h2>
+    <p class="unified-sub">Live trace of the AI agent's thought process — which tools it chose, what it observed, and why</p>
+  </div>
+  <div id="agent-log" style="display:flex;flex-direction:column;gap:6px;padding:16px;">
+    <div class="empty-state"><div class="spinner"></div><p>Waiting for agent cycle…</p></div>
   </div>
 </div>
 
