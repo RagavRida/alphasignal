@@ -134,17 +134,23 @@ async function runDemo() {
   // Inject synthetic BD activity events — shows all 5 products firing
   const fakeCalls = [
     {product:'MCP Server',       action:'search_engine',      detail:'B2B SaaS Series A hiring SDRs India/US'},
+    {product:'AI/ML API',        action:'icp_parse',          detail:'B2B SaaS, Series A, hiring SDRs, India/US'},
     {product:'SERP API',         action:'google_search',      detail:'funded AI SaaS startups 2025 seed series-a hiring'},
     {product:'MCP Server',       action:'search_engine',      detail:'companies switching from Replit Builder.io alternatives'},
+    {product:'AI/ML API',        action:'lead_score',         detail:'Scoring Landbase against ICP criteria'},
     {product:'Web Unlocker',     action:'scrape_as_html',     detail:'g2.com/products/replit/reviews'},
     {product:'SERP API',         action:'google_search',      detail:'site:reddit.com Replit frustrated OR switching OR alternative'},
     {product:'Web Unlocker',     action:'scrape_as_html',     detail:'glassdoor.com/Reviews/Landbase-reviews...'},
     {product:'Scraping Browser', action:'scrape_as_markdown', detail:'linkedin.com/jobs/search?keywords=Landbase&location=US'},
+    {product:'AI/ML API',        action:'email_generate',     detail:'Generating 4-step sequence for Landbase'},
     {product:'MCP Server',       action:'search_engine',      detail:'Rho business banking Series A recent news 2025'},
     {product:'Scraping Browser', action:'scrape_as_markdown', detail:'landbase.com/blog'},
+    {product:'AI/ML API',        action:'email_generate',     detail:'Generating 4-step sequence for Rho'},
     {product:'Web Unlocker',     action:'scrape_as_html',     detail:'g2.com/products/builder-io/reviews'},
     {product:'SERP API',         action:'google_search',      detail:'site:news.ycombinator.com AI development platform'},
+    {product:'AI/ML API',        action:'email_generate',     detail:'Generating 4-step sequence for Attio'},
     {product:'Scraping Browser', action:'scrape_as_markdown', detail:'attio.com/blog/series-a'},
+    {product:'AI/ML API',        action:'linkedin_dm',        detail:'Writing LinkedIn DMs for 8 leads'},
   ];
 
   for (let i = 0; i < fakeCalls.length; i++) {
@@ -237,6 +243,7 @@ function _tickBDCounter(product, action, detail) {
     'Web Scraper':        'bd-count-scraper',
     'Web Unlocker':       'bd-count-unlocker',
     'Datacenter Proxy':   'bd-count-proxy',
+    'AI/ML API':          'bd-count-aiml',
   };
   const key = Object.keys(map).find(k => product && product.includes(k));
   if (!key) return;

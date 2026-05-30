@@ -47,27 +47,30 @@ function toggleSidebar() {
 // ── WS: Bridge sales WebSocket into unified feed ──────────────────────────────
 
 function connectSalesWS() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const salesWS = new WebSocket(`${proto}//${location.host}/ws/sales`);
+  const salesES = new EventSource('/sse/sales');
 
-  salesWS.onopen = () => updateSidebarWS(true);
+  salesES.onopen = () => updateSidebarWS(true);
 
-  salesWS.onmessage = (e) => {
+  salesES.onmessage = (e) => {
     const msg = JSON.parse(e.data);
 
     if (msg.type === 'initial_data') {
       // Populate leads table + signals from existing DB data
       if (msg.leads)   { allLeads = msg.leads; renderLeads(); updateStatsFromLeads(); }
       if (msg.signals) { msg.signals.forEach(s => onNewSignal(s)); }
-      document.getElementById('nav-lead-count').textContent = (msg.leads || []).length;
-      document.getElementById('nav-leads-inline').textContent = (msg.leads || []).length;
+      const navLeadCount = document.getElementById('nav-lead-count');
+      const navLeadsInline = document.getElementById('nav-leads-inline');
+      if (navLeadCount) navLeadCount.textContent = (msg.leads || []).length;
+      if (navLeadsInline) navLeadsInline.textContent = (msg.leads || []).length;
     }
 
     if (msg.type === 'new_lead') {
       onNewLead(msg.lead);
       const count = allLeads.length;
-      document.getElementById('nav-lead-count').textContent = count;
-      document.getElementById('nav-leads-inline').textContent = count;
+      const navLeadCount = document.getElementById('nav-lead-count');
+      const navLeadsInline = document.getElementById('nav-leads-inline');
+      if (navLeadCount) navLeadCount.textContent = count;
+      if (navLeadsInline) navLeadsInline.textContent = count;
 
       // Push to unified feed
       pushUnifiedEvent({
@@ -87,7 +90,7 @@ function connectSalesWS() {
     if (msg.type === 'new_signal') {
       onNewSignal(msg.signal);
       const sigEl = document.getElementById('nav-signal-count');
-      sigEl.textContent = parseInt(sigEl.textContent || '0') + 1;
+      if (sigEl) sigEl.textContent = parseInt(sigEl.textContent || '0') + 1;
 
       pushUnifiedEvent({
         source:     'sales',
@@ -98,8 +101,12 @@ function connectSalesWS() {
       });
     }
 
+    if (msg.type === 'pipeline_step' && typeof onPipelineStep === 'function') {
+      onPipelineStep(msg);
+    }
+
     if (msg.type === 'pipeline_done') {
-      onPipelineDone(msg);
+      if (typeof onPipelineDone === 'function') onPipelineDone(msg);
       pushUnifiedEvent({
         source: 'sales',
         title:  '✅ Sales Pipeline Complete',
@@ -108,21 +115,15 @@ function connectSalesWS() {
       });
     }
 
-    if (msg.type === 'heartbeat') {
-      updateSidebarWS(true);
+    if (msg.type === 'bd_activity' && typeof onBDActivity === 'function') {
+      onBDActivity(msg);
     }
   };
 
-  salesWS.onclose = () => {
+  salesES.onerror = () => {
     updateSidebarWS(false);
-    setTimeout(connectSalesWS, 3000);
+    // EventSource auto-reconnects — no manual retry needed
   };
-
-  // Ping every 15s
-  const ping = setInterval(() => {
-    if (salesWS.readyState === WebSocket.OPEN) salesWS.send('ping');
-    else clearInterval(ping);
-  }, 15000);
 }
 
 function updateSidebarWS(live) {

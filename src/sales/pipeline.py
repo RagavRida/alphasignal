@@ -27,6 +27,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich import box
 from src.llm import OpenAI
+from src.bright_data_client import _emit
 
 from src.bright_data_client import BrightDataClient
 from src.sales.icp_parser import ICPParser
@@ -138,6 +139,7 @@ class SalesPipeline:
 
         # ── Step 1: Parse ICP ──────────────────────────────────────────────────
         console.print("\n[bold]Step 1/5:[/bold] Parsing ICP...")
+        await _emit("AI/ML API", "icp_parse", icp_text[:60])
         icp = self.icp_parser.parse(icp_text)
         console.print(f"  Mode: {icp.mode} | Industry: {icp.industry} | "
                       f"Stage: {icp.stage} | Geo: {icp.geo}")
@@ -184,6 +186,7 @@ class SalesPipeline:
             async with sem:
                 console.print(f"  [{i+1}/{len(leads)}] {lead.company_name} (score: {lead.score:.0f})...")
                 ctx    = await self.ctx_fetcher.fetch(lead)
+                await _emit("AI/ML API", "email_generate", lead.company_name)
                 emails = await self.sequencer.generate_sequence(lead, ctx)
 
                 lead.intent_signals = [

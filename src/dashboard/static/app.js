@@ -26,6 +26,7 @@ function connectSSE() {
   es.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'alert') handleNewAlert(msg.data);
+    if (msg.type === 'bd_activity' && typeof onBDActivity === 'function') onBDActivity(msg);
   };
 
   es.onerror = () => {

@@ -51,6 +51,11 @@ Always include the bear case. Output ONLY valid JSON with no markdown wrapping."
         if self.demo_mode or not self.client:
             claude_out = self._demo_output(company, correlation, signals)
         else:
+            try:
+                from src.bright_data_client import _emit
+                await _emit("AI/ML API", "alert_generate", company)
+            except Exception:
+                pass
             claude_out = await self._call_llm(company, correlation, signals)
 
         rec = {**correlation.get("recommendation", {}), **claude_out.get("recommendation", {})}

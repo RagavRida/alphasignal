@@ -117,7 +117,9 @@ async def broadcast_agent_thought(thought: dict):
 
 
 async def _on_bd_activity(event: dict):
-    _enqueue(_sse_sales_queues, json.dumps({"type": "bd_activity", **event}))
+    payload = json.dumps({"type": "bd_activity", **event})
+    _enqueue(_sse_sales_queues, payload)
+    _enqueue(_sse_monitor_queues, payload)
 
 try:
     from src.bright_data_client import set_activity_callback
