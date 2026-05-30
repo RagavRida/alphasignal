@@ -74,6 +74,24 @@ TOOLS = [
         "params": ["url"],
     },
     {
+        "name": "enrich_tech_stack",
+        "product": "Datacenter Proxy (BuiltWith) + MCP Server (homepage)",
+        "description": "Detect what software a company uses: CRM, analytics, payments, frameworks, hosting. Use to score leads by tech fit (e.g. 'uses HubSpot = B2B SaaS buyer') and personalise outreach.",
+        "params": ["domain"],
+    },
+    {
+        "name": "find_github_leads",
+        "product": "SERP API + MCP Server (GitHub orgs)",
+        "description": "Find companies actively building on GitHub with a given tech stack. Returns org name, website, description. High buying intent: they are actively hiring engineers and shipping.",
+        "params": ["tech_keywords"],
+    },
+    {
+        "name": "find_producthunt_leads",
+        "product": "SERP API + MCP Server (Product Hunt)",
+        "description": "Find companies that recently launched on Product Hunt. Launch = growth mode = budget allocated and buying intent high.",
+        "params": ["category_keywords"],
+    },
+    {
         "name": "trigger_outreach",
         "product": "internal + Resend",
         "description": "Trigger the full sales pipeline for a company and auto-send Step 1 email via Resend. Use when a company shows high buying intent (score >=70 or strong G2 switching signals). Sends immediately — no human click needed.",
@@ -350,6 +368,27 @@ Respond ONLY with valid JSON, no markdown:
                 if url:
                     return await self.bd.mcp.scrape_markdown(url) if self.bd.mcp else {}
                 return {"error": "no url provided"}
+
+            if tool_name == "enrich_tech_stack":
+                from src.sales.tech_enricher import TechEnricher
+                enricher = TechEnricher(self.bd)
+                return await enricher.enrich(params.get("domain", ""))
+
+            if tool_name == "find_github_leads":
+                from src.sales.alt_sources import GitHubSourcer
+                sourcer = GitHubSourcer(self.bd)
+                keywords = params.get("tech_keywords", [])
+                if isinstance(keywords, str):
+                    keywords = [keywords]
+                return await sourcer.find_companies(keywords)
+
+            if tool_name == "find_producthunt_leads":
+                from src.sales.alt_sources import ProductHuntSourcer
+                sourcer = ProductHuntSourcer(self.bd)
+                keywords = params.get("category_keywords", [])
+                if isinstance(keywords, str):
+                    keywords = [keywords]
+                return await sourcer.find_recent_launches(keywords)
 
             if tool_name == "trigger_outreach":
                 # Run the sales pipeline with auto_send=True — no human click needed

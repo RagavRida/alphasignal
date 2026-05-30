@@ -73,6 +73,11 @@ async def start_background_monitor():
         subscribe_to_alerts(broadcast_alert)
         subscribe_to_thoughts(broadcast_agent_thought)
         asyncio.create_task(monitor.run())
+
+        # Follow-up scheduler — sends Step 2/3/4 emails autonomously
+        from src.sales.followup_scheduler import FollowUpScheduler
+        scheduler = FollowUpScheduler(check_interval=3600)
+        asyncio.create_task(scheduler.run())
     except Exception as e:
         print(f"[monitor] Failed to start background monitor: {e}", flush=True)
 

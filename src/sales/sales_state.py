@@ -76,6 +76,14 @@ def init_db():
             notes TEXT,
             logged_at TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS followup_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_id TEXT,
+            step_sent INTEGER,
+            contact_email TEXT,
+            sent_at TEXT
+        );
         """)
 
 
@@ -201,3 +209,76 @@ def update_email_status(email_id: str, status: str, sent_at: str = ""):
 def update_lead_status(lead_id: str, status: str):
     with _conn() as c:
         c.execute("UPDATE leads SET status=? WHERE id=?", (status, lead_id))
+
+
+def get_emails_for_lead(lead_id: str) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM outreach_emails WHERE lead_id=? ORDER BY sequence_step",
+            (lead_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_followup_due_leads() -> list[dict]:
+    """
+    Returns leads where the next follow-up step is due based on elapsed days.
+    Step delays: Step1→Step2: 3 days, Step2→Step3: 7 days, Step3→Step4: 14 days.
+    """
+    step_delays = {1: 3, 2: 7, 3: 14}
+    due = []
+    with _conn() as c:
+        # Get leads that have at least one sent email
+        rows = c.execute("""
+            SELECT l.id as lead_id, l.status,
+                   MAX(e.sequence_step) as last_step,
+                   e.sent_at, e.id as last_email_id,
+                   cr.contact_name, cr.contact_title
+            FROM leads l
+            JOIN outreach_emails e ON l.id = e.lead_id
+            LEFT JOIN crm_entries cr ON l.id = cr.lead_id
+            WHERE e.status = 'sent'
+            GROUP BY l.id
+        """).fetchall()
+
+    for row in rows:
+        r = dict(row)
+        last_step = r.get("last_step", 0)
+        if last_step >= 4:
+            continue  # sequence complete
+        sent_at_str = r.get("sent_at", "")
+        if not sent_at_str:
+            continue
+        try:
+            sent_at = datetime.fromisoformat(sent_at_str.replace("Z", ""))
+        except ValueError:
+            continue
+        delay = step_delays.get(last_step, 999)
+        if datetime.utcnow() >= sent_at + timedelta(days=delay):
+            # Look up contact email from CRM or lead data
+            contact_email = ""
+            with _conn() as c:
+                lead_row = c.execute(
+                    "SELECT data_json FROM leads WHERE id=?", (r["lead_id"],)
+                ).fetchone()
+                if lead_row and lead_row["data_json"]:
+                    import json
+                    data = json.loads(lead_row["data_json"])
+                    contacts = data.get("contacts", [])
+                    if contacts:
+                        contact_email = contacts[0].get("email", "")
+            due.append({
+                "lead_id":       r["lead_id"],
+                "next_step":     last_step + 1,
+                "contact_email": contact_email,
+                "contact_name":  r.get("contact_name", ""),
+            })
+    return due
+
+
+def record_followup_sent(lead_id: str, step: int, contact_email: str = ""):
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO followup_log (lead_id, step_sent, contact_email, sent_at) VALUES (?,?,?,?)",
+            (lead_id, step, contact_email, datetime.utcnow().isoformat() + "Z"),
+        )
