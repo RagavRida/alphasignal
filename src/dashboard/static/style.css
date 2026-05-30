@@ -447,18 +447,22 @@ body {
 }
 
 .signal-pill {
-  background: var(--bg-base);
-  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(100, 116, 139, 0.3);
   border-radius: 100px;
-  padding: 2px 7px;
-  font-size: 10px;
-  color: var(--text-muted);
+  padding: 3px 10px;
+  font-size: 11px;
+  color: #94a3b8;
   font-family: var(--font-mono);
+  white-space: nowrap;
+  letter-spacing: 0.2px;
 }
 
 .signal-pill.fired {
-  border-color: rgba(0,212,255,0.3);
-  color: var(--accent);
+  border-color: rgba(0,212,255,0.4);
+  color: #22d3ee;
+  background: rgba(0, 212, 255, 0.08);
+  font-weight: 600;
 }
 
 .alert-time {
