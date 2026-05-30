@@ -59,6 +59,11 @@ _monitor_ref  = None
 @app.on_event("startup")
 async def start_background_monitor():
     """Launch the autonomous monitor as a background task in the same process."""
+    # Ensure all DB tables exist (critical on fresh deploys / data wipe)
+    state.init_db()
+    from src.sales import sales_state
+    sales_state.init_db()
+
     demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
     if demo_mode:
         return
