@@ -112,11 +112,19 @@ function renderAlertCard(alert) {
 
   const signalPills = signals.slice(0, 5).map(s => {
     const label = _signalLabel(s);
-    const color = s.alert
-      ? (parseFloat(s.variance_pct) < 0 ? 'var(--red)' : 'var(--green)')
-      : 'var(--text-muted)';
+    let pillColor, pillBg, pillBorder;
+    if (s.alert) {
+      const negative = parseFloat(s.variance_pct) < 0;
+      pillColor  = negative ? '#ef4444' : '#22c55e';
+      pillBg     = negative ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)';
+      pillBorder = negative ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)';
+    } else {
+      pillColor  = '#64748b';
+      pillBg     = 'rgba(100,116,139,0.06)';
+      pillBorder = 'rgba(100,116,139,0.2)';
+    }
     return `<span class="signal-pill ${s.alert ? 'fired' : ''}"
-      style="border-color:${color}30;color:${color};background:${color}0f">
+      style="border-color:${pillBorder};color:${pillColor};background:${pillBg}">
       ${label}
     </span>`;
   }).join('');
