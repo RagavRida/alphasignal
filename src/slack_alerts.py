@@ -177,10 +177,7 @@ async def send_market_alert(alert: dict) -> bool:
         ]
     })
 
-    payload = {
-        "blocks": blocks,
-        "attachments": [{"color": color, "blocks": []}],  # Color stripe
-    }
+    payload = {"blocks": blocks}
 
     return await _post(url, payload)
 
@@ -304,7 +301,7 @@ async def send_new_lead(lead: dict, brand_name: str = "AlphaSignal") -> bool:
 async def _post(url: str, payload: dict) -> bool:
     """Post payload to Slack webhook URL."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(url, json=payload)
             if resp.status_code == 200:
                 return True
