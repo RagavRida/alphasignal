@@ -68,6 +68,21 @@ function renderFeed() {
   feed.innerHTML = filtered.map(renderAlertCard).join('');
 }
 
+function _signalLabel(s) {
+  const typeMap = {
+    hiring_velocity:  'Hiring',
+    pricing_change:   'Pricing',
+    funding:          'Funding',
+    news:             'News',
+    financial_health: 'Fin Health',
+    supplier_risk:    'Supplier',
+    web_traffic:      'Traffic',
+  };
+  const name = typeMap[s.signal_type] || (s.signal_type || '').replace(/_/g, ' ');
+  const pct  = s.variance_pct ? String(s.variance_pct).slice(0, 7) : '';
+  return pct ? `${name} ${pct}` : name;
+}
+
 function renderAlertCard(alert) {
   const type = alert.alert_type || alert.correlation_type || 'growth_thesis';
   const conf = alert.confidence_score || 0;
@@ -94,9 +109,16 @@ function renderAlertCard(alert) {
   const sensitivityColors = { immediate: 'var(--red)', urgent: 'var(--yellow)', moderate: 'var(--accent)', low: 'var(--text-muted)' };
   const sensColor = sensitivityColors[sensitivity] || 'var(--accent)';
 
-  const signalPills = signals.slice(0, 5).map(s =>
-    `<span class="signal-pill ${s.alert ? 'fired' : ''}">${s.signal_type?.replace('_', ' ') || ''}</span>`
-  ).join('');
+  const signalPills = signals.slice(0, 5).map(s => {
+    const label = _signalLabel(s);
+    const color = s.alert
+      ? (parseFloat(s.variance_pct) < 0 ? 'var(--red)' : 'var(--green)')
+      : 'var(--text-muted)';
+    return `<span class="signal-pill ${s.alert ? 'fired' : ''}"
+      style="border-color:${color}30;color:${color};background:${color}0f">
+      ${label}
+    </span>`;
+  }).join('');
 
   const timeAgo = formatTimeAgo(alert.timestamp);
 
