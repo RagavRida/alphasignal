@@ -296,9 +296,18 @@ class SalesPipeline:
     async def _auto_send_step1(self, lead: Lead, email) -> bool:
         """
         Automatically send Step 1 email via Resend.
-        Priority: known contact email → guessed email patterns from domain.
+        In demo mode (or Resend free tier), sends to DEMO_EMAIL / own address.
+        In production, sends to real contact emails.
         """
         import re
+
+        # Demo mode: send to own email so judges can see it arrive
+        demo_email = os.getenv("DEMO_SEND_TO", "")
+        if demo_email and "@" in demo_email:
+            sent = await self.sequencer.send_email(email, demo_email, "Demo Recipient")
+            if sent:
+                console.print(f"  [green]✉ Demo auto-sent to {demo_email}[/green]")
+                return True
 
         # Try known contacts first
         for contact in (lead.contacts or []):
