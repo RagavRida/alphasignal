@@ -305,9 +305,12 @@ class BrightDataClient:
     """
     Unified async client for all Bright Data products.
 
-    MCP server = primary path for all queries (search, scrape, extract).
-    Direct REST API (SERP zone + proxy zone) = reliable fallback.
-    Demo mode = realistic synthetic data, zero API calls.
+    Priority order per operation:
+      1. Bright Data Datasets API   — pre-built structured data (jobs, funding, reviews, traffic)
+      2. MCP Server                 — live scrape via scrape_as_markdown / search_engine / extract
+      3. Datacenter Proxy tunnel    — route our own requests through brd.superproxy.io
+      4. REST API endpoint          — POST api.brightdata.com/request (zone-based)
+      5. Demo mode                  — synthetic data, zero API calls
     """
 
     def __init__(
@@ -317,6 +320,10 @@ class BrightDataClient:
         scraper_zone: str  = "datacenter_proxy1",
         mcp_url:      str  = "",
         demo_mode:    bool = False,
+        proxy_host:   str  = "",
+        proxy_port:   int  = 33335,
+        proxy_user:   str  = "",
+        proxy_pass:   str  = "",
     ):
         self.api_token    = api_token
         self.serp_zone    = serp_zone
@@ -324,13 +331,35 @@ class BrightDataClient:
         self.demo_mode    = demo_mode
         self._rest: Optional[aiohttp.ClientSession] = None
 
-        # MCP client (primary)
+        # Datacenter proxy tunnel (brd.superproxy.io)
+        self._proxy_url: Optional[str] = None
+        self._proxy_session: Optional[aiohttp.ClientSession] = None
+        if proxy_host and proxy_user and proxy_pass and not demo_mode:
+            self._proxy_url = f"http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}"
+            print(f"  [BrightData] Datacenter proxy enabled → {proxy_host}:{proxy_port}")
+
+        # MCP client (primary live-scrape path)
         self.mcp: Optional[MCPClient] = None
         if mcp_url and not demo_mode:
             self.mcp = MCPClient(mcp_url)
             print(f"  [BrightData] MCP enabled → {mcp_url[:60]}…")
         elif not demo_mode:
-            print(f"  [BrightData] MCP disabled — using direct REST API (zone: {serp_zone})")
+            print(f"  [BrightData] MCP disabled — using proxy + REST API (zone: {serp_zone})")
+
+    @classmethod
+    def from_env(cls) -> "BrightDataClient":
+        """Construct from environment variables."""
+        return cls(
+            api_token    = os.getenv("BRIGHT_DATA_API_TOKEN", ""),
+            serp_zone    = os.getenv("BRIGHT_DATA_SERP_ZONE", "serp_api1"),
+            scraper_zone = os.getenv("BRIGHT_DATA_SCRAPER_ZONE", "datacenter_proxy1"),
+            mcp_url      = os.getenv("BRIGHT_DATA_MCP_URL", ""),
+            demo_mode    = os.getenv("DEMO_MODE", "false").lower() == "true",
+            proxy_host   = os.getenv("BRIGHT_DATA_PROXY_HOST", ""),
+            proxy_port   = int(os.getenv("BRIGHT_DATA_PROXY_PORT", "33335")),
+            proxy_user   = os.getenv("BRIGHT_DATA_PROXY_USER", ""),
+            proxy_pass   = os.getenv("BRIGHT_DATA_PROXY_PASS", ""),
+        )
 
     def _rest_headers(self) -> dict:
         return {
@@ -346,9 +375,45 @@ class BrightDataClient:
             )
         return self._rest
 
+    async def _get_proxy_session(self) -> Optional[aiohttp.ClientSession]:
+        """Return an aiohttp session that tunnels through the Bright Data datacenter proxy."""
+        if not self._proxy_url:
+            return None
+        if self._proxy_session is None or self._proxy_session.closed:
+            self._proxy_session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=60),
+            )
+        return self._proxy_session
+
+    async def proxy_fetch(self, url: str, headers: Optional[dict] = None) -> str:
+        """
+        Fetch a URL by routing the request through the Bright Data datacenter proxy.
+        This is the direct proxy tunnel — traffic exits from a Bright Data IP.
+        Used for: geo-sensitive pages, rate-limited APIs, sites that block cloud IPs.
+        """
+        await _emit("Datacenter Proxy", "GET", url)
+        session = await self._get_proxy_session()
+        if not session:
+            return ""
+        try:
+            async with session.get(
+                url,
+                proxy=self._proxy_url,
+                headers=headers or {"User-Agent": "Mozilla/5.0 (compatible; AlphaSignal/1.0)"},
+                ssl=False,
+            ) as resp:
+                if resp.status == 200:
+                    return await resp.text()
+                return ""
+        except Exception as e:
+            print(f"  [Proxy fetch error] {url}: {e}")
+            return ""
+
     async def close(self):
         if self._rest and not self._rest.closed:
             await self._rest.close()
+        if self._proxy_session and not self._proxy_session.closed:
+            await self._proxy_session.close()
         if self.mcp:
             await self.mcp.close()
 
@@ -608,6 +673,21 @@ class BrightDataClient:
         domain = domain_map.get(company, f"{company.lower().replace(' ', '')}.com")
         sw_url = f"https://www.similarweb.com/website/{domain}/"
 
+        # Step 1: Bright Data Datasets API (SimilarWeb dataset)
+        dataset_record = await self.dataset_traffic(domain)
+        if dataset_record:
+            visits = float(dataset_record.get("visits", 0) or 0) / 1_000_000
+            if visits > 0:
+                return {
+                    "company": company, "domain": domain,
+                    "monthly_visits_millions": visits,
+                    "monthly_visits_prev_millions": visits,
+                    "change_pct": float(dataset_record.get("mom_unique_visitors", 0) or 0),
+                    "source": "Bright Data Datasets (SimilarWeb)",
+                    "scraped_at": datetime.utcnow().isoformat(),
+                }
+
+        # Step 2: MCP scrape_as_markdown
         if self.mcp:
             try:
                 md = await self.mcp.scrape_markdown(sw_url)
@@ -615,8 +695,17 @@ class BrightDataClient:
                 if t.get("monthly_visits_millions", 0) > 0:
                     return t
             except Exception as e:
-                print(f"  [MCP traffic → REST fallback] {e}")
+                print(f"  [MCP traffic → proxy fallback] {e}")
 
+        # Step 3: Datacenter Proxy tunnel — SimilarWeb blocks cloud IPs
+        html = await self.proxy_fetch(sw_url)
+        if html:
+            t = self._traffic_from_html(html, company, domain)
+            if t.get("monthly_visits_millions", 0) > 0:
+                t["source"] = "Datacenter Proxy (SimilarWeb)"
+                return t
+
+        # Step 4: REST API endpoint fallback
         rest    = await self._get_rest()
         payload = {"zone": self.scraper_zone, "url": sw_url, "format": "raw"}
         try:

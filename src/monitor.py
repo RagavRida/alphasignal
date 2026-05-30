@@ -76,13 +76,7 @@ class AutonomousMonitor:
         self.cycle_count = 0
 
         # Bright Data client
-        self.bd = BrightDataClient(
-            api_token=os.getenv("BRIGHT_DATA_API_TOKEN", ""),
-            serp_zone=os.getenv("BRIGHT_DATA_SERP_ZONE", "serp_api1"),
-            scraper_zone=os.getenv("BRIGHT_DATA_SCRAPER_ZONE", "datacenter_proxy1"),
-            mcp_url=os.getenv("BRIGHT_DATA_MCP_URL", ""),
-            demo_mode=demo_mode,
-        )
+        self.bd = BrightDataClient.from_env()
 
         # Signal detectors
         self.hiring    = HiringVelocityDetector(self.bd, self.config["thresholds"]["hiring_velocity_alert"])

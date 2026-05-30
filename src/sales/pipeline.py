@@ -63,14 +63,9 @@ class SalesPipeline:
     def __init__(self, demo_mode: bool = False):
         self.demo_mode = demo_mode
 
-        # Shared Bright Data client
-        self.bd = BrightDataClient(
-            api_token=os.getenv("BRIGHT_DATA_API_TOKEN", ""),
-            serp_zone=os.getenv("BRIGHT_DATA_SERP_ZONE", "serp_api1"),
-            scraper_zone=os.getenv("BRIGHT_DATA_SCRAPER_ZONE", "datacenter_proxy1"),
-            mcp_url=os.getenv("BRIGHT_DATA_MCP_URL", ""),
-            demo_mode=demo_mode,
-        )
+        # Shared Bright Data client (proxy creds auto-loaded from env)
+        self.bd = BrightDataClient.from_env()
+        self.bd.demo_mode = demo_mode
 
         # LLM client (AI/ML API — OpenAI-compatible)
         aiml_key  = os.getenv("AIML_API_KEY", "")
